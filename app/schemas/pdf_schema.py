@@ -10,7 +10,7 @@ from typing import Optional
 from app.models.pdf_document import ProcessingStatus
 
 
-# ── Base Schema ───────────────────────────────────────────────────────────────
+    # ── Base Schema ───────────────────────────────────────────────────────────────
 class PDFDocumentBase(BaseModel):
     """Các field chung cho PDF document"""
     filename: str
@@ -19,6 +19,7 @@ class PDFDocumentBase(BaseModel):
     mime_type: str = "application/pdf"
     title: Optional[str] = None
     page_count: Optional[int] = None
+    user_id: str = Field(..., description="Supabase Auth user ID")
 
 
 # ── Response Schema ───────────────────────────────────────────────────────────

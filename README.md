@@ -1,64 +1,120 @@
-# PaperSanta 
-Đây là đồ án AI Research Assistant của nhóm Trí Tuệ Nhân Nhượng lớp 24TNT1 cho môn học Tư duy tính toán. 
-Hiện tại chỉ implement việc upload pdf chứ chưa có gì thêm
-## Cấu trúc project
+# PaperSanta
+
+Đồ án AI Research Assistant — PDF Storage với Supabase Auth.
+
+## Kiến trúc Auth
+
 ```
-papersanta/
-├── main.py                    ← FastAPI entry point
-├── requirements.txt
-├── .env                       ← credentials (đừng commit)
-├── uploads/                   ← PDF files lưu ở đây
-├── frontend/
-│   └── index.html             ← Web UI test
-└── app/
-    ├── core/
-    │   ├── config.py          ← Settings (pydantic-settings)
-    │   └── database.py        ← SQLAlchemy engine + session
-    ├── models/
-    │   └── pdf_document.py    ← ORM model
-    ├── schemas/
-    │   └── pdf_schema.py      ← Pydantic request/response
-    ├── services/
-    │   └── pdf_service.py     ← Business logic (dễ test)
-    └── api/
-        └── pdf_router.py      ← FastAPI routes
+Frontend (React + supabase-js)
+    │  signInWithOAuth({ provider: "google" })
+    │  → Google OAuth → Supabase callback → JWT in localStorage
+    │
+    │  Mỗi request gửi kèm:
+    │  Authorization: Bearer <supabase_jwt>
+    │
+    ▼
+FastAPI (stateless, không cookie, không session)
+    │
+    ├── get_current_user (dependency)
+    │   └── PyJWT decode với SUPABASE_JWT_SECRET
+    │       → user_id (uuid) + email
+    │
+    ├── SQLAlchemy (WHERE user_id = ...)
+    └── Supabase Storage (path: {user_id}/{filename})
 ```
+
+- Backend **stateless** — không quản lý OAuth, không session server-side
+- Mỗi user chỉ thấy PDF của mình (filter theo `user_id` từ JWT)
+- Storage: 1 bucket `pdfs` chung, path phân biệt `{user_id}/{filename}`
 
 ## Setup
 
-```bash
-# 1. Tạo virtual env
-python -m venv .venv
-.venv\Scripts\activate        # Windows
-source .venv/bin/activate     # Mac/Linux
+### 1. Supabase Project
 
-# 2. Cài dependencies
-pip install -r requirements.txt
+Tạo project tại [supabase.com](https://supabase.com), sau đó:
 
-# 3. Copy file .env mà tao gửi trong notion vào để test
+**Authentication → Providers → Google:**
+- Bật Google provider
+- Client ID + Secret từ [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+- Redirect URI: lấy từ Supabase (ví dụ: `https://dtggkrxdqpijfemihzkz.supabase.co/auth/v1/callback`)
 
-# 4. Chạy server
-uvicorn main:app --reload --port 8000
+**Authentication → Settings:**
+- **Site URL:** `http://localhost:5173` (hoặc URL frontend của mày)
+- **Redirect URLs:** thêm `http://localhost:5173/**`
+
+**Settings → API:**
+- `Project URL` → `SUPABASE_URL`
+- `anon public` key → `SUPABASE_KEY` (cho frontend)
+- `service_role` key → `SUPABASE_SERVICE_ROLE_KEY` (cho backend storage)
+- `JWT Secret` → `SUPABASE_JWT_SECRET` (cho backend verify token)
+
+### 2. Database (chạy 1 lần)
+
+Vì thêm cột `user_id` vào model cũ, cần migrate bằng SQL Editor trong Supabase Dashboard:
+
+```sql
+ALTER TABLE pdf_documents ADD COLUMN IF NOT EXISTS user_id VARCHAR(255) NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS ix_pdf_documents_user_id ON pdf_documents(user_id);
 ```
 
-## Test
+Nếu chưa có dữ liệu quan trọng, có thể drop bảng cũ và để app tự tạo lại:
+```sql
+DROP TABLE IF EXISTS pdf_documents;
+```
 
-- **Web UI:**     http://localhost:8000
-- **Swagger:**    http://localhost:8000/docs
-- **Health:**     http://localhost:8000/health
+### 3. Env
 
-## API Endpoints
+**Copy file `.env` từ notion, thêm 2 field mới:**
 
-| Method | URL | Mô tả |
-|--------|-----|-------|
-| POST | /api/pdf/upload | Upload PDF |
-| GET | /api/pdf/ | Danh sách PDF |
-| GET | /api/pdf/{id} | Chi tiết PDF |
-| GET | /api/pdf/{id}/file | Serve file (render) |
-| DELETE | /api/pdf/{id} | Xóa PDF |
+```env
+# Supabase Auth
+SUPABASE_JWT_SECRET=<lấy từ Settings → API → JWT Secret>
+SUPABASE_SERVICE_ROLE_KEY=<lấy từ Settings → API → service_role key>
+```
 
-## Phase 2 (RAG)
-- Thêm `pgvector` extension vào Supabase
-- Thêm `pdf_chunks` table với `embedding vector(1536)`
-- Service: extract text → chunk → embed → lưu vector
-- API: `POST /api/pdf/{id}/index` và `GET /api/search?q=...`
+**Frontend env** (`frontend/.env` — đã có sẵn, kiểm tra lại nếu cần):
+```env
+VITE_SUPABASE_URL=<giống SUPABASE_URL>
+VITE_SUPABASE_ANON_KEY=<anon public key>
+```
+
+### 4. Chạy
+
+```bash
+# Backend
+.venv\Scripts\activate        # Windows
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+
+# Frontend (terminal riêng)
+cd frontend
+npm install
+npm run dev
+```
+
+Mở `http://localhost:5173` → click "Sign in with Google" → xài app.
+
+### 5. Nhiều user
+
+- Bạn bè mở URL trên → sign in Google → mỗi đứa có user riêng
+- Mỗi đứa chỉ thấy PDF của mình (backend filter `user_id`)
+- Storage path: `{user_id}/{filename}` — không lo đè file
+
+## API
+
+| Method | URL | Auth | Mô tả |
+|--------|-----|------|-------|
+| POST | /api/pdf/upload | ✅ | Upload PDF |
+| GET | /api/pdf/ | ✅ | Danh sách PDF (của user hiện tại) |
+| GET | /api/pdf/{id} | ✅ | Chi tiết PDF |
+| GET | /api/pdf/{id}/file | ✅ | Serve file |
+| DELETE | /api/pdf/{id} | ✅ | Xóa PDF |
+| GET | /health | ❌ | Health check |
+
+Tất cả endpoint (trừ health) đều cần `Authorization: Bearer <token>` — nếu không có → 401.
+
+## Security notes
+
+- `.env` chứa credentials thật **đã bị commit** — chạy `git rm --cached .env` để stop tracking, add vào `.gitignore` đã có sẵn
+- `SUPABASE_JWT_SECRET` và `SUPABASE_SERVICE_ROLE_KEY` là **secret**, không để lộ
+- `SUPABASE_KEY` (anon) là public, an toàn để ở frontend

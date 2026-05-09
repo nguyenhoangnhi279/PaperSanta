@@ -20,9 +20,11 @@ class Settings(BaseSettings):
     DB_USER: str = ""
     DB_PASSWORD: str = ""
 
-    # ── Supabase Storage ──────────────────────────────────────────────────────
+    # ── Supabase Auth & Storage ───────────────────────────────────────────────
     SUPABASE_URL: str = ""
-    SUPABASE_KEY: str = ""
+    SUPABASE_KEY: str = ""             # anon public key (dùng cho frontend)
+    SUPABASE_SERVICE_ROLE_KEY: str = "" # service_role key (dùng backend storage)
+    SUPABASE_JWT_SECRET: str = ""      # để verify JWT server-side
     SUPABASE_STORAGE_BUCKET: str = "pdfs"
 
     @property

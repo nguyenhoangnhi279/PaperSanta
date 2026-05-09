@@ -28,6 +28,9 @@ class PDFDocument(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
+    user_id: Mapped[str] = mapped_column(
+        String(255), nullable=False, index=True
+    )
 
     # ── File info ─────────────────────────────────────────────────────────────
     filename: Mapped[str]      = mapped_column(String(255), nullable=False)
