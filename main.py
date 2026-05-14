@@ -14,6 +14,7 @@ from pathlib import Path
 from app.core.config import settings
 from app.core.database import init_db
 from app.api.pdf_router import router as pdf_router
+from app.api.embedding_router import router as embedding_router
 
 logging.basicConfig(
     level=logging.DEBUG if settings.DEBUG else logging.INFO,
@@ -53,6 +54,7 @@ app.add_middleware(
 
 # Routes
 app.include_router(pdf_router)
+app.include_router(embedding_router)
 
 # Serve frontend static files
 frontend_path = Path(__file__).resolve().parent / "frontend"
