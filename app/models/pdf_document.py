@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import UUID
 import enum
 
 from app.core.database import Base
+from app.models.embedding import PDFChunk  # tránh circular import
 
 
 class ProcessingStatus(str, enum.Enum):
