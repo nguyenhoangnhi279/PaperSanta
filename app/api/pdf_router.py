@@ -6,18 +6,18 @@ from fastapi import APIRouter, UploadFile, File, Depends, Query, BackgroundTasks
 from fastapi.responses import FileResponse, RedirectResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.services.pdf_service import PDFService
+from app.models.pdf_document import ProcessingStatus
 from app.schemas.pdf_schema import (
     UploadResponse,
     PDFListResponse,
     PDFDocumentResponse,
     DeleteResponse,
 )
-from app.services.pdf_pipeline_service import PDFPipelineService
 from app.models.pdf_document import PDFDocument
 from app.models.embedding import PDFChunk, PDFEmbedding
 
@@ -93,3 +93,39 @@ async def delete_pdf(
 ):
     doc = await PDFService.delete(doc_id, db, current_user["user_id"])
     return DeleteResponse(message="Đã xóa thành công.", id=doc.id)
+
+
+@router.post("/{doc_id}/index", status_code=202)
+async def index_pdf(
+    doc_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Trigger indexing pipeline for a PDF. Uses an atomic UPDATE to avoid races.
+
+    If the PDF is in `pending` or `failed` state, transition it to processing
+    and spawn a background task to run the pipeline. Otherwise return 409.
+    """
+    # Atomic update: only update when status is PENDING or FAILED
+    stmt = (
+        update(PDFDocument)
+        .where(
+            PDFDocument.id == doc_id,
+            PDFDocument.user_id == current_user["user_id"],
+            PDFDocument.status.in_([ProcessingStatus.PENDING, ProcessingStatus.FAILED]),
+        )
+        .values(status=ProcessingStatus.EXTRACTED)
+        .returning(PDFDocument.id)
+    )
+
+    result = await db.execute(stmt)
+    updated = result.scalar_one_or_none()
+
+    if not updated:
+        raise HTTPException(409, "Tài liệu đang xử lý hoặc đã hoàn tất")
+
+    # Commit will happen when dependency finishes; spawn background task
+    background_tasks.add_task(PDFService.process_pdf, doc_id)
+
+    return {"message": "Đang xử lý", "pdf_id": str(doc_id)}
