@@ -9,3 +9,5 @@ pypdf
 supabase
 python-dotenv
 pyjwt
+pgvector
+

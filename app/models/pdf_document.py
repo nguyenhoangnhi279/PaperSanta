@@ -5,11 +5,12 @@ pdf_document.py — ORM model cho bảng pdf_documents
 import uuid
 from datetime import datetime
 from sqlalchemy import String, Integer, DateTime, Text, Enum as SAEnum
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 import enum
 
 from app.core.database import Base
+from app.models.embedding import PDFChunk  # tránh circular import
 
 
 class ProcessingStatus(str, enum.Enum):
@@ -63,6 +64,13 @@ class PDFDocument(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
         nullable=False,
+    )
+
+    # ── Relationships ─────────────────────────────────────────────────────────
+    chunks: Mapped[list["PDFChunk"]] = relationship(
+        "PDFChunk",
+        back_populates="pdf_document",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:
