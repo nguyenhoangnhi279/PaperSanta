@@ -4,6 +4,7 @@ rag_service.py — RAG: Retrieval + Generation
 
 import logging
 import time
+import asyncio
 from uuid import UUID
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +34,7 @@ class RAGService:
         logger.info(f"Similarity search: query='{query_text[:50]}...', pdf_ids={pdf_ids}, top_k={top_k}")
 
         # Embed query
-        query_vector = EmbeddingProvider.embed_text(query_text)
+        query_vector = await asyncio.to_thread(EmbeddingProvider.embed_text, query_text)
 
         # Build query: join chunks → embeddings, filter by pdf_ids
         stmt = (
@@ -133,9 +134,11 @@ class RAGService:
 
         # ── 3. Generate ─────────────────────────────────────────────────────
         t1 = time.time()
-        answer, prompt_tokens, completion_tokens = DeepSeekProvider.generate(
-            system_prompt=settings.RAG_SYSTEM_PROMPT,
-            user_prompt=user_prompt,
+        answer, prompt_tokens, completion_tokens = await asyncio.to_thread(
+            lambda: DeepSeekProvider.generate(
+                system_prompt=settings.RAG_SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+            )
         )
         generate_time = time.time() - t1
 

@@ -44,8 +44,8 @@ class PDFChunkListResponse(BaseModel):
 # ── Embedding Schemas ─────────────────────────────────────────────────────────
 class PDFEmbeddingBase(BaseModel):
     """Base schema cho embedding"""
-    embedding_model: str = Field(default="text-embedding-3-small")
-    embedding_dimension: int = Field(default=1536)
+    embedding_model: str = Field(default="all-MiniLM-L6-v2")
+    embedding_dimension: int = Field(default=384)
 
 
 class PDFEmbeddingCreate(PDFEmbeddingBase):
@@ -89,7 +89,7 @@ class EmbeddingBatchResponse(BaseModel):
 # ── RAG Query Schema ──────────────────────────────────────────────────────────
 class RAGQueryRequest(BaseModel):
     """Request cho RAG similarity search"""
-    query_vector: list[float] = Field(..., description="Query embedding vector")
+    query_text: str = Field(..., min_length=1, description="Câu hỏi của user")
     top_k: int = Field(default=5, ge=1, le=100)
     pdf_id: Optional[UUID] = None  # Filter by specific PDF
 
@@ -97,8 +97,10 @@ class RAGQueryRequest(BaseModel):
 class RAGQueryResult(BaseModel):
     """Kết quả từ RAG search"""
     chunk: PDFChunkResponse
-    similarity_score: float = Field(..., ge=0, le=1)
+    score: float = Field(..., ge=0, le=1)
     pdf_id: UUID
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RAGQueryResponse(BaseModel):
