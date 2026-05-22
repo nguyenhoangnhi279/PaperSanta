@@ -1,0 +1,205 @@
+Fix Log — 2026-05-14
+======================
+Repository: PaperSanta
+
+Bug 1: embedding_router.py — Missing auth + non-existent method
+----------------------------------------------------------------
+- File: app/api/embedding_router.py
+- The 4 embedding endpoints (POST/DELETE /api/embeddings/{pdf_id}/chunks,
+  GET /api/embeddings/{pdf_id}/chunks, GET /api/embeddings/{pdf_id}/embedding-status)
+  had NO authentication (no Depends(get_current_user)), violating the project rule
+  that all endpoints except /health require Authorization.
+- All 4 calls to PDFService.get_pdf_by_id(session, pdf_id) referenced a method
+  that does not exist in pdf_service.py (only get_by_id exists, with a different
+  signature requiring user_id).
+- Fix:
+  - Added from app.core.auth import get_current_user to imports.
+  - Added current_user: dict = Depends(get_current_user) to all 4 endpoint
+    function signatures.
+  - Replaced PDFService.get_pdf_by_id(session, pdf_id) with
+    PDFService.get_by_id(pdf_id, session, current_user["user_id"]).
+
+Bug 2: Stray "nul" file at repository root
+-------------------------------------------
+- File: ./nul
+- A Windows command artifact containing "ERROR: Invalid argument/option - 'F:/'"
+  that was accidentally committed to the repo.
+- Fix: Deleted the file.
+
+Notes
+-----
+- The old get_pdf_by_id was likely intended to return None on missing PDF,
+  but the actual get_by_id raises HTTPException 404. The "if not pdf" checks
+  in embedding_router.py are now dead code but harmless.
+
+New Feature: PDF Text Extraction
+---------------------------------
+- File: app/services/pdf_service.py
+  + Added `extract_text(doc_id, db, user_id)` static method:
+    - Downloads PDF from Supabase Storage via `supabase.storage.download()`
+    - Uses `PdfReader` (pypdf) to extract text page by page
+    - Updates `page_count`, `extracted_text`, `status = EXTRACTED`
+    - On failure: sets `status = FAILED` + `error_message`
+- File: app/schemas/pdf_schema.py
+  + Added `ExtractResponse` schema (id, page_count, char_count, status, message)
+- File: app/api/pdf_router.py
+  + Added `POST /api/pdf/{doc_id}/extract` endpoint (auth required)
+
+Schema Review — 2026-05-14
+===========================
+Reviewed by: AI code review
+Based on: feedback from anonymous reviewer + codebase analysis
+
+Issues flagged:
+
+1. Token tracking missing (CAO — cần làm khi implement chat)
+   - chat_messages thiếu prompt_tokens / completion_tokens
+   - File: app/models/chat.py (ChatMessage model)
+
+2. parent_message_id cho branching chat (TRUNG BÌNH — tuỳ UI)
+   - chat_messages là flat list, thiếu parent_message_id
+   - File: app/models/chat.py (ChatMessage model)
+   - Chỉ cần nếu UI có "Regenerate" hoặc sửa message rẽ nhánh
+
+3. extracted_text trong pdf_documents (THẤP — chưa cần fix)
+   - Lưu Text ngay trong bảng pdf_documents
+   - PostgreSQL TOAST đã xử lý tốt nếu không SELECT cột này
+   - Nếu performance có vấn đề sau này thì move ra bảng riêng
+
+4. user_id cần index — ĐÃ CÓ SẴN (false alarm)
+   - All user_id columns already have index=True
+
+5. Type hint sai Vector column (NHẸ)
+   - File: app/models/embedding.py
+   - vector: Mapped[str] nhưng thực tế dùng Vector(1536) từ pgvector
+   - Runtime vẫn chạy nhưng IDE sẽ hiểu sai kiểu
+
+Code Review & Fixes — 2026-05-15
+=================================
+Repository: PaperSanta
+Based on: code review before running test
+
+Issues found & fixed:
+
+1. DB password thiếu URL encoding (CAO)
+   - File: app/core/config.py
+   - Password có ký tự đặc biệt (@ : / %) sẽ crash asyncpg connection
+   - Fix: thêm from urllib.parse import quote_plus, dùng quote_plus(self.DB_PASSWORD)
+     khi build database_url
+
+2. Thiếu validate chunk_size / overlap (TRUNG BÌNH)
+   - File: app/api/embedding_router.py (POST /{pdf_id}/chunk)
+   - chunk_size có thể là 0 hoặc âm → chunking loop infinite/error
+   - overlap có thể âm → start_char tăng sai
+   - Fix: thêm validate chunk_size >= 1, overlap >= 0, clamp overlap nếu >= chunk_size
+
+3. Dead code: if not pdf sau get_by_id (4 chỗ) (NHẸ)
+   - File: app/api/embedding_router.py
+   - Các endpoint chunk, chunks, embedding-status, delete chunks đều gọi
+     PDFService.get_by_id() — method này đã raise 404 nếu không tìm thấy
+   - Fix: xóa toàn bộ khối if not pdf: raise HTTPException(404, ...)
+     + xóa import không dùng (PDFDocument, EmbeddingBatchResponse)
+
+4. count_embeddings_by_pdf load all records vào memory (NHẸ)
+   - File: app/services/embedding_service.py
+   - select(PDFEmbedding) ... → len(result.scalars().all()) load hết row về Python
+   - Fix: dùng select(func.count(PDFEmbedding.id)) → result.scalar_one()
+   - Move from sqlalchemy import func lên top-level import
+
+5. Type hint Vector column sai (NHẸ)
+   - File: app/models/embedding.py:91
+   - vector: Mapped[str] nhưng thực tế là Vector(1536) → list[float]
+   - Fix: đổi thành Mapped[list[float]]
+   - Xóa import Float không dùng
+
+6. UPLOAD_DIR không dùng đến (NHẸ)
+   - File: app/core/config.py
+   - Config có UPLOAD_DIR nhưng service dùng Supabase Storage, không dùng local path
+   - Fix: xóa UPLOAD_DIR khỏi Settings class
+
+New Feature: Local Embedding với sentence-transformers — 2026-05-15
+===================================================================
+Thay thế OpenAI text-embedding-3-small (tốn phí) bằng all-MiniLM-L6-v2 (free, local)
+
+1. Thêm dependency
+   - File: requirements.txt
+   - Thêm sentence-transformers
+
+2. Cấu hình embedding model
+   - File: app/core/config.py
+   - Thêm: EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+   - Thêm: EMBEDDING_DIMENSION = 384
+   - Thêm: EMBEDDING_DEVICE = "cpu"
+
+3. Tạo EmbeddingProvider (singleton)
+   - File: app/core/embedding_provider.py (MỚI)
+   - Lazy load SentenceTransformer model lần đầu gọi
+   - Hàm embed_texts(): encode batch texts → list[list[float]]
+   - Cache model theo tên, tự động reload nếu đổi model
+
+4. Cập nhật model database
+   - File: app/models/embedding.py
+   - Vector(1536) → Vector(384) cho phù hợp dimension mới
+   - Default embedding_model: "text-embedding-3-small" → "all-MiniLM-L6-v2"
+   - Default embedding_dimension: 1536 → 384
+
+5. Thêm generate_embeddings trong service
+   - File: app/services/embedding_service.py
+   - generate_embeddings(): lấy chunks → embed batch → lưu → update PDF status = 'indexed'
+   - Xóa embeddings cũ trước khi tạo mới (idempotent)
+
+6. Thêm API endpoint
+   - File: app/api/embedding_router.py
+   - POST /api/embeddings/{pdf_id}/generate
+   - Kiểm tra extract_text và chunks trước khi embed
+   - Trả về EmbeddingBatchResponse
+
+New Feature: RAG Query (Retrieval + Generation) — 2026-05-15
+============================================================
+Implement full RAG pipeline: vector search → DeepSeek generation → lưu hội thoại
+
+1. Thêm dependency
+   - File: requirements.txt
+   - Thêm: openai
+
+2. Cấu hình DeepSeek + RAG
+   - File: app/core/config.py
+   - Thêm DEEPSEEK_API_KEY, DEEPSEEK_API_BASE, DEEPSEEK_MODEL
+   - Thêm RAG_DEFAULT_TOP_K, RAG_MIN_SCORE, RAG_SYSTEM_PROMPT
+
+3. Cập nhật RAGQueryRequest schema
+   - File: app/schemas/embedding_schema.py
+   - query_vector (list[float]) → query_text (str) để user gửi text trực tiếp
+   - similarity_score → score (ngắn gọn hơn)
+
+4. Tạo chat_schema.py
+   - File: app/schemas/chat_schema.py (MỚI)
+   - ChatRequest: query_text, session_id (optional), pdf_ids, top_k
+   - ChatResponse: answer, session_id, citations, token usage
+   - ChatSessionResponse / ChatMessageResponse: lịch sử hội thoại
+
+5. Tạo DeepSeek provider
+   - File: app/core/deepseek_provider.py (MỚI)
+   - Singleton OpenAI client với base_url = https://api.deepseek.com
+   - generate(): system_prompt + user_prompt → (answer, prompt_tokens, completion_tokens)
+
+6. Tạo RAG service
+   - File: app/services/rag_service.py (MỚI)
+   - similarity_search(): embed query → pgvector cosine_distance → top chunks
+   - generate_answer(): full pipeline: retrieve → context → DeepSeek → lưu DB
+
+7. Tạo RAG router
+   - File: app/api/rag_router.py (MỚI)
+   - POST /api/rag/query — chỉ retrieval (không LLM, không lưu)
+   - POST /api/rag/chat — full RAG: retrieve + DeepSeek + lưu session/messages/citations
+   - GET /api/rag/sessions — danh sách sessions của user
+   - GET /api/rag/sessions/{id} — chi tiết session + messages
+   - DELETE /api/rag/sessions/{id} — xóa session
+
+8. Fix chat model (từ schema review 2026-05-14)
+   - File: app/models/chat.py
+   - Thêm prompt_tokens, completion_tokens vào ChatMessage
+
+9. Register router
+   - File: main.py
+   - Import + include rag_router

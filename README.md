@@ -118,3 +118,82 @@ Tất cả endpoint (trừ health) đều cần `Authorization: Bearer <token>` 
 - `.env` chứa credentials thật **đã bị commit** — chạy `git rm --cached .env` để stop tracking, add vào `.gitignore` đã có sẵn
 - `SUPABASE_JWT_SECRET` và `SUPABASE_SERVICE_ROLE_KEY` là **secret**, không để lộ
 - `SUPABASE_KEY` (anon) là public, an toàn để ở frontend
+
+```
+PaperSanta
+├─ AGENTS.md
+├─ app
+│  ├─ api
+│  │  ├─ embedding_router.py
+│  │  ├─ pdf_router.py
+│  │  └─ rag_router.py
+│  ├─ core
+│  │  ├─ auth.py
+│  │  ├─ config.py
+│  │  ├─ database.py
+│  │  ├─ deepseek_provider.py
+│  │  ├─ embedding_provider.py
+│  │  └─ __init__.py
+│  ├─ models
+│  │  ├─ analysis.py
+│  │  ├─ chat.py
+│  │  ├─ embedding.py
+│  │  └─ pdf_document.py
+│  ├─ schemas
+│  │  ├─ chat_schema.py
+│  │  ├─ embedding_schema.py
+│  │  └─ pdf_schema.py
+│  ├─ services
+│  │  ├─ embedding_service.py
+│  │  ├─ pdf_service.py
+│  │  └─ rag_service.py
+│  └─ __init__.py
+├─ fix_log_2026-05-14.txt
+├─ frontend
+│  ├─ FRONTEND.md
+│  ├─ index.html
+│  ├─ package-lock.json
+│  ├─ package.json
+│  ├─ README.md
+│  ├─ src
+│  │  ├─ api
+│  │  │  ├─ pdf.js
+│  │  │  └─ rag.js
+│  │  ├─ App.jsx
+│  │  ├─ components
+│  │  │  ├─ AppLayout.jsx
+│  │  │  ├─ ChatPanel.jsx
+│  │  │  ├─ LibraryPanel.jsx
+│  │  │  ├─ MainContent.jsx
+│  │  │  ├─ NavItem.jsx
+│  │  │  ├─ PaperCard.jsx
+│  │  │  ├─ PdfList.jsx
+│  │  │  ├─ Sidebar.jsx
+│  │  │  ├─ SidebarSection.jsx
+│  │  │  ├─ ToastContainer.jsx
+│  │  │  ├─ UploadZone.jsx
+│  │  │  ├─ UserAccount.jsx
+│  │  │  ├─ Viewer.jsx
+│  │  │  └─ WelcomeCard.jsx
+│  │  ├─ context
+│  │  │  └─ AuthContext.jsx
+│  │  ├─ index.css
+│  │  ├─ lib
+│  │  │  └─ supabase.js
+│  │  ├─ main.jsx
+│  │  └─ utils
+│  │     └─ format.js
+│  └─ vite.config.js
+├─ main.py
+├─ RAG_RAG
+│  ├─ rag_from_scratch_10_and_11.ipynb
+│  ├─ rag_from_scratch_12_to_14.ipynb
+│  ├─ rag_from_scratch_15_to_18.ipynb
+│  ├─ rag_from_scratch_1_to_4.ipynb
+│  ├─ rag_from_scratch_5_to_9.ipynb
+│  └─ README.md
+├─ README.md
+├─ requirements.txt
+└─ TODO-frontend.md
+
+```
