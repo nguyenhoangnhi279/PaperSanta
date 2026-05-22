@@ -35,6 +35,24 @@ export async function uploadPdfFile(file, token) {
     headers: getAuthHeaders(token),
   });
 
+  const data = await parseResponse(response);
+
+  // Trigger indexing in background (do not block or change upload return)
+  if (data && data.id) {
+    // fire-and-forget; log but don't surface errors to caller
+    indexPdfFile(data.id, token).catch((err) => {
+      console.warn('Failed to trigger index for PDF', data.id, err);
+    });
+  }
+
+  return data;
+}
+
+export async function indexPdfFile(id, token) {
+  const response = await fetch(`${API_BASE}/${id}/index`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+  });
   return parseResponse(response);
 }
 
