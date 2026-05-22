@@ -1,6 +1,6 @@
 # PaperSanta
 
-Đồ án AI Research Assistant — PDF Storage với Supabase Auth.
+Đồ án AI Research Assistant — PDF Storage + RAG Pipeline với Supabase Auth & DeepSeek.
 
 ## Kiến trúc Auth
 
@@ -39,8 +39,8 @@ Tạo project tại [supabase.com](https://supabase.com), sau đó:
 - Redirect URI: lấy từ Supabase (ví dụ: `https://dtggkrxdqpijfemihzkz.supabase.co/auth/v1/callback`)
 
 **Authentication → Settings:**
-- **Site URL:** `http://localhost:5173` (hoặc URL frontend của mày)
-- **Redirect URLs:** thêm `http://localhost:5173/**`
+- **Site URL:** `http://localhost:5173/static/` (hoặc URL frontend của mày)
+- **Redirect URLs:** thêm `http://localhost:5173/static/**`
 
 **Settings → API:**
 - `Project URL` → `SUPABASE_URL`
@@ -92,7 +92,7 @@ npm install
 npm run dev
 ```
 
-Mở `http://localhost:5173` → click "Sign in with Google" → xài app.
+Mở `http://localhost:5173/static/` → click "Sign in with Google" → xài app.
 
 ### 5. Nhiều user
 
@@ -109,6 +109,13 @@ Mở `http://localhost:5173` → click "Sign in with Google" → xài app.
 | GET | /api/pdf/{id} | ✅ | Chi tiết PDF |
 | GET | /api/pdf/{id}/file | ✅ | Serve file |
 | DELETE | /api/pdf/{id} | ✅ | Xóa PDF |
+| POST | /api/pdf/{id}/index | ✅ | Trigger indexing pipeline |
+| GET | /api/pdf/{id}/status | ✅ | Check indexing status |
+| POST | /api/rag/chat | ✅ | Chat với PDF (RAG) |
+| GET | /api/rag/sessions | ✅ | Danh sách chat sessions |
+| GET | /api/rag/sessions/{id} | ✅ | Chi tiết session |
+| DELETE | /api/rag/sessions/{id} | ✅ | Xóa session |
+| POST | /api/embedding/search | ✅ | Tìm kiếm similar documents |
 | GET | /health | ❌ | Health check |
 
 Tất cả endpoint (trừ health) đều cần `Authorization: Bearer <token>` — nếu không có → 401.
