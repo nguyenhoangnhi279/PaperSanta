@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     SUPABASE_JWT_SECRET: str = ""      # để verify JWT server-side
     SUPABASE_STORAGE_BUCKET: str = "pdfs"
 
+    # ── External APIs ─────────────────────────────────────────────────────────
+    GEMINI_API_KEY: str = ""           # Google Gemini API key
+    SEMANTIC_SCHOLAR_API_KEY: str = "" # Semantic Scholar API key (optional)
+
     @property
     def database_url(self) -> str:
         # asyncpg driver cho SQLAlchemy async

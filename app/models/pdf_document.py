@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy import String, Integer, DateTime, Text, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, ARRAY
 import enum
 
 from app.core.database import Base
@@ -43,8 +43,8 @@ class PDFDocument(Base):
     # ── Metadata ──────────────────────────────────────────────────────────────
     title: Mapped[str | None]    = mapped_column(String(500), nullable=True)
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)   # raw text (phase 2)
-
+    extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)   # raw text (phase 2)    
+    extracted_topics: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)  # keywords from Gemini
     # ── Status ────────────────────────────────────────────────────────────────
     status: Mapped[ProcessingStatus] = mapped_column(
         SAEnum(ProcessingStatus, name="processingstatus"),
