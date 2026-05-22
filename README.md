@@ -1,6 +1,6 @@
 # PaperSanta
 
-Đồ án AI Research Assistant — PDF Storage với Supabase Auth.
+Đồ án AI Research Assistant — PDF Storage + RAG Pipeline với Supabase Auth & DeepSeek.
 
 ## Kiến trúc Auth
 
@@ -39,8 +39,8 @@ Tạo project tại [supabase.com](https://supabase.com), sau đó:
 - Redirect URI: lấy từ Supabase (ví dụ: `https://dtggkrxdqpijfemihzkz.supabase.co/auth/v1/callback`)
 
 **Authentication → Settings:**
-- **Site URL:** `http://localhost:5173` (hoặc URL frontend của mày)
-- **Redirect URLs:** thêm `http://localhost:5173/**`
+- **Site URL:** `http://localhost:5173/static/` (hoặc URL frontend của mày)
+- **Redirect URLs:** thêm `http://localhost:5173/static/**`
 
 **Settings → API:**
 - `Project URL` → `SUPABASE_URL`
@@ -92,7 +92,7 @@ npm install
 npm run dev
 ```
 
-Mở `http://localhost:5173` → click "Sign in with Google" → xài app.
+Mở `http://localhost:5173/static/` → click "Sign in with Google" → xài app.
 
 ### 5. Nhiều user
 
@@ -109,6 +109,13 @@ Mở `http://localhost:5173` → click "Sign in with Google" → xài app.
 | GET | /api/pdf/{id} | ✅ | Chi tiết PDF |
 | GET | /api/pdf/{id}/file | ✅ | Serve file |
 | DELETE | /api/pdf/{id} | ✅ | Xóa PDF |
+| POST | /api/pdf/{id}/index | ✅ | Trigger indexing pipeline |
+| GET | /api/pdf/{id}/status | ✅ | Check indexing status |
+| POST | /api/rag/chat | ✅ | Chat với PDF (RAG) |
+| GET | /api/rag/sessions | ✅ | Danh sách chat sessions |
+| GET | /api/rag/sessions/{id} | ✅ | Chi tiết session |
+| DELETE | /api/rag/sessions/{id} | ✅ | Xóa session |
+| POST | /api/embedding/search | ✅ | Tìm kiếm similar documents |
 | GET | /health | ❌ | Health check |
 
 Tất cả endpoint (trừ health) đều cần `Authorization: Bearer <token>` — nếu không có → 401.
@@ -118,3 +125,82 @@ Tất cả endpoint (trừ health) đều cần `Authorization: Bearer <token>` 
 - `.env` chứa credentials thật **đã bị commit** — chạy `git rm --cached .env` để stop tracking, add vào `.gitignore` đã có sẵn
 - `SUPABASE_JWT_SECRET` và `SUPABASE_SERVICE_ROLE_KEY` là **secret**, không để lộ
 - `SUPABASE_KEY` (anon) là public, an toàn để ở frontend
+
+```
+PaperSanta
+├─ AGENTS.md
+├─ app
+│  ├─ api
+│  │  ├─ embedding_router.py
+│  │  ├─ pdf_router.py
+│  │  └─ rag_router.py
+│  ├─ core
+│  │  ├─ auth.py
+│  │  ├─ config.py
+│  │  ├─ database.py
+│  │  ├─ deepseek_provider.py
+│  │  ├─ embedding_provider.py
+│  │  └─ __init__.py
+│  ├─ models
+│  │  ├─ analysis.py
+│  │  ├─ chat.py
+│  │  ├─ embedding.py
+│  │  └─ pdf_document.py
+│  ├─ schemas
+│  │  ├─ chat_schema.py
+│  │  ├─ embedding_schema.py
+│  │  └─ pdf_schema.py
+│  ├─ services
+│  │  ├─ embedding_service.py
+│  │  ├─ pdf_service.py
+│  │  └─ rag_service.py
+│  └─ __init__.py
+├─ fix_log_2026-05-14.txt
+├─ frontend
+│  ├─ FRONTEND.md
+│  ├─ index.html
+│  ├─ package-lock.json
+│  ├─ package.json
+│  ├─ README.md
+│  ├─ src
+│  │  ├─ api
+│  │  │  ├─ pdf.js
+│  │  │  └─ rag.js
+│  │  ├─ App.jsx
+│  │  ├─ components
+│  │  │  ├─ AppLayout.jsx
+│  │  │  ├─ ChatPanel.jsx
+│  │  │  ├─ LibraryPanel.jsx
+│  │  │  ├─ MainContent.jsx
+│  │  │  ├─ NavItem.jsx
+│  │  │  ├─ PaperCard.jsx
+│  │  │  ├─ PdfList.jsx
+│  │  │  ├─ Sidebar.jsx
+│  │  │  ├─ SidebarSection.jsx
+│  │  │  ├─ ToastContainer.jsx
+│  │  │  ├─ UploadZone.jsx
+│  │  │  ├─ UserAccount.jsx
+│  │  │  ├─ Viewer.jsx
+│  │  │  └─ WelcomeCard.jsx
+│  │  ├─ context
+│  │  │  └─ AuthContext.jsx
+│  │  ├─ index.css
+│  │  ├─ lib
+│  │  │  └─ supabase.js
+│  │  ├─ main.jsx
+│  │  └─ utils
+│  │     └─ format.js
+│  └─ vite.config.js
+├─ main.py
+├─ RAG_RAG
+│  ├─ rag_from_scratch_10_and_11.ipynb
+│  ├─ rag_from_scratch_12_to_14.ipynb
+│  ├─ rag_from_scratch_15_to_18.ipynb
+│  ├─ rag_from_scratch_1_to_4.ipynb
+│  ├─ rag_from_scratch_5_to_9.ipynb
+│  └─ README.md
+├─ README.md
+├─ requirements.txt
+└─ TODO-frontend.md
+
+```

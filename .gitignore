@@ -4,6 +4,7 @@
 .env
 .env.*
 !.env.example
+AGENTS.md
 
 # =========================
 # 2. PYTHON / FASTAPI (BACKEND)

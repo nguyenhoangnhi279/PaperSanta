@@ -87,9 +87,9 @@ class PDFEmbedding(Base):
     )
 
     # ── Embedding vector ──────────────────────────────────────────────────────
-    # Dùng pgvector extension của PostgreSQL (dimension = 1536 cho OpenAI embeddings)
+    # Dùng pgvector extension của PostgreSQL (dimension = 384 cho all-MiniLM-L6-v2)
     vector: Mapped[str] = mapped_column(
-        Vector(1536),
+        Vector(384),
         nullable=False,
         index=True,
     )
@@ -97,12 +97,12 @@ class PDFEmbedding(Base):
     # ── Embedding metadata ────────────────────────────────────────────────────
     embedding_model: Mapped[str] = mapped_column(
         String(100),
-        default="text-embedding-3-small",  # OpenAI model
+        default="all-MiniLM-L6-v2",
         nullable=False,
     )
     embedding_dimension: Mapped[int] = mapped_column(
         Integer,
-        default=1536,
+        default=384,
         nullable=False,
     )
 

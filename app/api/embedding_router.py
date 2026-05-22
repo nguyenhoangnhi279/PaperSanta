@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.auth import get_current_user
 from app.models.pdf_document import PDFDocument
 from app.schemas.embedding_schema import (
     PDFChunkResponse,
@@ -29,6 +30,7 @@ async def chunk_pdf(
     chunk_size: int = 1000,
     overlap: int = 200,
     session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Split PDF content thành chunks
@@ -38,12 +40,7 @@ async def chunk_pdf(
     - **overlap**: Overlap giữa chunks (default: 200 characters)
     """
     # Get PDF document
-    pdf = await PDFService.get_pdf_by_id(session, pdf_id)
-    if not pdf:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"PDF {pdf_id} not found",
-        )
+    pdf = await PDFService.get_by_id(pdf_id, session, current_user["user_id"])
 
     if not pdf.extracted_text:
         raise HTTPException(
@@ -80,15 +77,10 @@ async def chunk_pdf(
 async def get_pdf_chunks(
     pdf_id: UUID,
     session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """Lấy tất cả chunks của một PDF"""
-    # Verify PDF exists
-    pdf = await PDFService.get_pdf_by_id(session, pdf_id)
-    if not pdf:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"PDF {pdf_id} not found",
-        )
+    pdf = await PDFService.get_by_id(pdf_id, session, current_user["user_id"])
 
     chunks = await EmbeddingService.get_chunks_by_pdf(session, pdf_id)
     chunk_responses = [
@@ -105,14 +97,10 @@ async def get_pdf_chunks(
 async def get_embedding_status(
     pdf_id: UUID,
     session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """Lấy trạng thái embedding của một PDF"""
-    pdf = await PDFService.get_pdf_by_id(session, pdf_id)
-    if not pdf:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"PDF {pdf_id} not found",
-        )
+    pdf = await PDFService.get_by_id(pdf_id, session, current_user["user_id"])
 
     total_chunks = len(await EmbeddingService.get_chunks_by_pdf(session, pdf_id))
     total_embeddings = await EmbeddingService.count_embeddings_by_pdf(
@@ -132,14 +120,10 @@ async def get_embedding_status(
 async def delete_pdf_chunks(
     pdf_id: UUID,
     session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """Xóa tất cả chunks của một PDF"""
-    pdf = await PDFService.get_pdf_by_id(session, pdf_id)
-    if not pdf:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"PDF {pdf_id} not found",
-        )
+    pdf = await PDFService.get_by_id(pdf_id, session, current_user["user_id"])
 
     deleted_count = await EmbeddingService.delete_chunks_by_pdf(session, pdf_id)
     await session.commit()

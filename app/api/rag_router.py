@@ -87,8 +87,18 @@ async def chat_with_pdfs(
     - Nếu session_id có: tiếp tục hội thoại (chỉ dùng context từ PDFs)
     """
     # Verify all PDF IDs belong to user
-    for pid in req.pdf_ids:
-        await PDFService.get_by_id(pid, db, current_user["user_id"])
+    from sqlalchemy import select
+    from app.models.pdf_document import PDFDocument
+    verify = await db.execute(
+        select(PDFDocument.id).where(
+            PDFDocument.id.in_(req.pdf_ids),
+            PDFDocument.user_id == current_user["user_id"],
+        )
+    )
+    found_ids = {r[0] for r in verify.all()}
+    missing = [str(pid) for pid in req.pdf_ids if pid not in found_ids]
+    if missing:
+        raise HTTPException(404, f"PDFs not found: {', '.join(missing)}")
 
     result = await RAGService.generate_answer(
         db=db,

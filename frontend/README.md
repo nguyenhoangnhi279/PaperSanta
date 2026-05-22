@@ -15,7 +15,7 @@ npm install
 npm run dev
 ```
 
-App sẽ chạy tại `http://localhost:5173` với hot reload.
+App sẽ chạy tại `http://localhost:5173/static/` với hot reload (do `base: '/static/'` trong Vite config).
 
 ## Build Production
 

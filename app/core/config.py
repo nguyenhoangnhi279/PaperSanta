@@ -48,13 +48,28 @@ class Settings(BaseSettings):
     def max_file_size_bytes(self) -> int:
         return self.MAX_FILE_SIZE_MB * 1024 * 1024
 
+    # ── Embedding ──────────────────────────────────────────────────────────────
+    EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
+    EMBEDDING_DEVICE: str = "cpu"
+
+    # ── RAG ────────────────────────────────────────────────────────────────────
+    RAG_MIN_SCORE: float = 0.15
+    RAG_SYSTEM_PROMPT: str = "You are a research assistant. Answer based on the provided context."
+
+    # ── DeepSeek ───────────────────────────────────────────────────────────────
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_API_BASE: str = "https://api.deepseek.com"
+    DEEPSEEK_MODEL: str = "deepseek-chat"
+
     # ── CORS ──────────────────────────────────────────────────────────────────
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:8000",
         "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173"
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174"
     ]
     model_config = {
         "env_file": os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../.env"),

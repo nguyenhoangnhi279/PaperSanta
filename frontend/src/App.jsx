@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import UploadZone from './components/UploadZone';
-import PdfList from './components/PdfList';
-import Viewer from './components/Viewer';
+import AppLayout from './components/AppLayout';
 import ToastContainer from './components/ToastContainer';
 import { fetchPdfs, getPdfFileUrl, uploadPdfFile, deletePdfById } from './api/pdf';
-import { formatSize } from './utils/format';
 
 function LoginPage({ signInWithGoogle }) {
   return (
@@ -37,6 +34,7 @@ function AppContent() {
   const [statusText, setStatusText] = useState('Checking...');
   const [uploading, setUploading] = useState(false);
   const [toastList, setToastList] = useState([]);
+  const [activeView, setActiveView] = useState('library');
 
   const addToast = (message, type = 'info', duration = 3000) => {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -78,25 +76,17 @@ function AppContent() {
       setPdfUrl('');
       return;
     }
-
     let canceled = false;
     const loadUrl = async () => {
       try {
         const data = await getPdfFileUrl(selectedDoc.id, token);
-        if (!canceled) {
-          setPdfUrl(data.url);
-        }
+        if (!canceled) setPdfUrl(data.url);
       } catch {
-        if (!canceled) {
-          setPdfUrl('/api/pdf/' + selectedDoc.id + '/file');
-        }
+        if (!canceled) setPdfUrl('/api/pdf/' + selectedDoc.id + '/file');
       }
     };
-
     loadUrl();
-    return () => {
-      canceled = true;
-    };
+    return () => { canceled = true; };
   }, [selectedDoc, token]);
 
   const handleUpload = async (file) => {
@@ -114,26 +104,33 @@ function AppContent() {
 
   const handleSelect = (doc) => {
     setSelectedDoc(doc);
+    setActiveView('library');
   };
 
   const handleDelete = async (doc) => {
-    if (!window.confirm('Xóa "' + doc.original_name + '"?')) {
-      return;
-    }
-
+    if (!window.confirm('Xóa "' + doc.original_name + '"?')) return;
     try {
       await deletePdfById(doc.id, token);
       addToast('Đã xóa: ' + doc.original_name, 'success');
-      if (selectedDoc?.id === doc.id) {
-        setSelectedDoc(null);
-      }
+      if (selectedDoc?.id === doc.id) setSelectedDoc(null);
       await loadDocuments();
     } catch (err) {
       addToast(err.message || 'Xóa thất bại', 'error', 5000);
     }
   };
 
-  const totalSize = documents.reduce((sum, item) => sum + (item.file_size ?? 0), 0);
+  const handleViewPdf = (doc) => {
+    setSelectedDoc(doc);
+    setActiveView('library');
+  };
+
+  const handleCloseViewer = () => {
+    setSelectedDoc(null);
+  };
+
+  const handleSimilar = () => {
+    addToast('Similar papers feature coming soon', 'info');
+  };
 
   if (loading) {
     return (
@@ -151,63 +148,23 @@ function AppContent() {
   }
 
   return (
-    <div className="app-shell">
-      <header>
-        <div className="logo">
-          Paper<span>Santa</span>
-        </div>
-        <div className="tagline">PDF Storage · RAG Pipeline</div>
-        <div className="header-right">
-          <div className="user-info">
-            <span className="user-email">{user.email}</span>
-            <button className="signout-btn" onClick={signOut}>Sign out</button>
-          </div>
-          <div className={'health-dot ' + (statusText === 'Online' ? 'ok' : '')} title="API Status" />
-        </div>
-      </header>
-
-      <aside>
-        <div className="sidebar-top">
-          <div className="sidebar-title">Upload PDF</div>
-          <UploadZone onUpload={handleUpload} uploading={uploading} />
-        </div>
-
-        <div className="sidebar-title" style={{ padding: '0 20px', marginBottom: '8px' }}>
-          Thư viện PDF
-        </div>
-
-        <div className="list-wrap">
-          <PdfList
-            documents={documents}
-            activeId={selectedDoc?.id}
-            onSelect={handleSelect}
-            onDelete={handleDelete}
-          />
-        </div>
-      </aside>
-
-      <main>
-        <div className="stats-bar">
-          <div className="stat">
-            Tổng: <b>{documents.length}</b> files
-          </div>
-          <div className="stat">
-            Kích thước: <b>{formatSize(totalSize)}</b>
-          </div>
-          <div className="stat">
-            API: <b>{statusText}</b>
-          </div>
-        </div>
-
-        <Viewer
-          document={selectedDoc}
-          pdfUrl={pdfUrl}
-          onClose={() => setSelectedDoc(null)}
-        />
-      </main>
-
+    <>
+      <AppLayout
+        activeView={activeView}
+        onNavigate={setActiveView}
+        documents={documents}
+        selectedDoc={selectedDoc}
+        pdfUrl={pdfUrl}
+        uploading={uploading}
+        userName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
+        onUpload={handleUpload}
+        onSelectDocument={handleSelect}
+        onViewPdf={handleViewPdf}
+        onCloseViewer={handleCloseViewer}
+        onSimilar={handleSimilar}
+      />
       <ToastContainer toasts={toastList} />
-    </div>
+    </>
   );
 }
 
