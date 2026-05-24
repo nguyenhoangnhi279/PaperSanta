@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FileText, Send, AlertCircle, MessageSquare, LayoutDashboard, ChevronRight, Trash2 } from 'lucide-react';
+import { FileText, Send, AlertCircle, MessageSquare, LayoutDashboard, ChevronRight, Trash2, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 import { ragChat, fetchSessions, fetchSession, deleteSession } from '../api/rag';
-import { getPdfFileUrl } from '../api/pdf';
+import { getPdfFileUrl, summarizePdf } from '../api/pdf';
 import PDFViewer from './PDFViewer';
 import MarkdownRenderer from './MarkdownRenderer';
 import type { PDFDocument, ChatMessage, ChatSession } from '../types';
@@ -31,6 +31,7 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
   const [showSessions, setShowSessions] = useState(false);
   const [showPdfSelector, setShowPdfSelector] = useState(false);
   const [errorVisible, setErrorVisible] = useState<string | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load PDF URL when paper changes
@@ -137,6 +138,26 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
     } catch { /* ignore */ }
   };
 
+  const handleSummarize = async () => {
+    if (!token || selectedPdfIds.length === 0) return;
+    setSummarizing(true);
+    try {
+      const result = await summarizePdf(selectedPdfIds[0], token);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', content: '📋 Summarize this paper', ts: new Date().toISOString() },
+        { role: 'assistant', content: result.summary, ts: new Date().toISOString(),
+          citations: [], tokens: { prompt: 0, completion: 0 } },
+      ]);
+    } catch (err: any) {
+      setMessages((prev) => [...prev,
+        { role: 'assistant', content: `Summarize failed: ${err.message}`, ts: new Date().toISOString() }
+      ]);
+    } finally {
+      setSummarizing(false);
+    }
+  };
+
   const selectedDocs = allPapers.filter((d) => selectedPdfIds.includes(d.id));
 
   return (
@@ -182,6 +203,14 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
             <span className="text-sm font-bold">PaperSanta Chat</span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleSummarize}
+              disabled={summarizing || selectedPdfIds.length === 0}
+              className="flex items-center gap-1 text-[10px] font-bold text-amber-600 hover:text-amber-700 border border-amber-200 px-2 py-1 rounded-lg disabled:opacity-50"
+            >
+              <Sparkles size={12} />
+              {summarizing ? 'Summarizing...' : 'Summarize'}
+            </button>
             <button
               onClick={() => setShowSessions(!showSessions)}
               className="text-[10px] font-bold text-gray-500 hover:text-gray-700 border border-gray-200 px-2 py-1 rounded-lg"

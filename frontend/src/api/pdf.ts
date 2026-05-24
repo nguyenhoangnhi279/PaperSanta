@@ -62,6 +62,17 @@ export async function deletePdfById(id: string, token?: string | null): Promise<
   return parseResponse(res);
 }
 
+export async function summarizePdf(
+  id: string,
+  token?: string | null
+): Promise<{ summary: string; generated_at: string; cached: boolean }> {
+  const res = await fetch(`${API_BASE}/${id}/summarize`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  });
+  return parseResponse(res);
+}
+
 export async function getPdfFileUrl(id: string, token?: string | null): Promise<{ url: string }> {
   const res = await fetch(`${API_BASE}/${id}/file?redirect=false`, {
     headers: authHeaders(token),
