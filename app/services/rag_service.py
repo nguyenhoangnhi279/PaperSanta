@@ -123,10 +123,11 @@ class RAGService:
 
         context = "\n---\n".join(context_parts)
         user_prompt = (
-            f"Dựa vào các đoạn trích dẫn sau đây từ tài liệu PDF, hãy trả lời câu hỏi.\n\n"
-            f"Các đoạn trích dẫn:\n{context}\n\n"
+            f"Dựa vào các đoạn trích dẫn từ tài liệu PDF, hãy phân tích và trả lời câu hỏi sau.\n\n"
+            f"Ngữ cảnh trích dẫn:\n{context}\n\n"
             f"Câu hỏi: {query_text}\n\n"
-            f"Trả lời:"
+            f"Hãy trả lời chi tiết, có trích dẫn trang cụ thể, dùng markdown. "
+            f"Kết luận bằng 2-3 câu tóm tắt."
         )
 
         # ── 3. Generate ─────────────────────────────────────────────────────
@@ -135,6 +136,8 @@ class RAGService:
             lambda: DeepSeekProvider.generate(
                 system_prompt=settings.RAG_SYSTEM_PROMPT,
                 user_prompt=user_prompt,
+                temperature=settings.RAG_TEMPERATURE,
+                max_tokens=settings.RAG_MAX_TOKENS,
             )
         )
         generate_time = time.time() - t1

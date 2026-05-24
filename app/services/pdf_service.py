@@ -205,15 +205,22 @@ class PDFService:
         full_text = "\n\n".join(text_parts)
 
         system_prompt = (
-            "Bạn là trợ lý nghiên cứu. Hãy tóm tắt paper dưới đây bằng tiếng Việt. "
-            "Yêu cầu: TL;DR ngắn gọn (3-5 câu), nêu rõ vấn đề, phương pháp, kết quả chính."
+            "Bạn là trợ lý nghiên cứu AI chuyên phân tích paper. "
+            "Trả lời bằng tiếng Việt.\n\n"
+            "Cấu trúc tóm tắt:\n"
+            "## Vấn đề nghiên cứu\nÝ chính, motivation, gap mà paper giải quyết\n\n"
+            "## Phương pháp\nCách tiếp cận chính, điểm mới so với prior work\n\n"
+            "## Kết quả chính\nCác findings quan trọng, con số/metrics nếu có\n\n"
+            "## Kết luận / Đóng góp\nTL;DR 2-3 câu: paper này đã làm gì, tại sao quan trọng"
         )
-        user_prompt = f"Dưới đây là nội dung paper:\n\n{full_text}\n\nHãy tóm tắt:"
+        user_prompt = f"Dưới đây là nội dung paper:\n\n{full_text}\n\nHãy tóm tắt chi tiết theo cấu trúc trên:"
 
         answer, prompt_tokens, completion_tokens = await asyncio.to_thread(
             lambda: DeepSeekProvider.generate(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
+                temperature=settings.RAG_TEMPERATURE,
+                max_tokens=settings.RAG_MAX_TOKENS,
             )
         )
 

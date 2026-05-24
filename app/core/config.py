@@ -50,7 +50,18 @@ class Settings(BaseSettings):
 
     # ── RAG ────────────────────────────────────────────────────────────────────
     RAG_MIN_SCORE: float = 0.15
-    RAG_SYSTEM_PROMPT: str = "You are a research assistant. Answer based on the provided context."
+    RAG_SYSTEM_PROMPT: str = (
+        "Bạn là trợ lý nghiên cứu AI chuyên sâu. Trả lời bằng tiếng Việt, "
+        "chi tiết, có cấu trúc.\n\n"
+        "Yêu cầu:\n"
+        "- Dẫn nguồn cụ thể (tên PDF, trang) cho mỗi luận điểm\n"
+        "- Dùng markdown (tiêu đề, bullet, bảng nếu cần)\n"
+        "- Nếu cần so sánh, hãy chỉ ra điểm giống/khác rõ ràng\n"
+        "- Kết luận: tóm tắt ngắn gọn ý chính\n"
+        "- Trả lời như đang giảng giải cho đồng nghiệp, không quá hàn lâm cũng không quá đơn giản"
+    )
+    RAG_TEMPERATURE: float = 0.7
+    RAG_MAX_TOKENS: int = 4096
 
     # ── DeepSeek ───────────────────────────────────────────────────────────────
     DEEPSEEK_API_KEY: str = ""
