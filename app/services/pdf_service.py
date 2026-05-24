@@ -156,8 +156,10 @@ class PDFService:
         except Exception as e:
             logger.warning(f"Could not delete file from Supabase Storage: {e}")
 
+        # Xoá chunks + embeddings (cascade ORM + DB tự xoá)
         await db.delete(doc)
         await db.flush()
+        await db.commit()
 
         return doc
 
