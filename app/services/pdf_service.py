@@ -4,6 +4,7 @@ import shutil
 import logging
 from pathlib import Path
 from io import BytesIO
+from datetime import datetime
 
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 from app.core.database import AsyncSessionLocal
 from app.services.embedding_service import EmbeddingService
 from app.core.embedding_provider import EmbeddingProvider
+from app.core.deepseek_provider import DeepSeekProvider
 import httpx
 import asyncio
 
@@ -169,6 +171,68 @@ class PDFService:
         return doc.file_path
 
     @staticmethod
+    async def summarize(
+        doc_id: uuid.UUID,
+        db: AsyncSession,
+        user_id: str,
+    ) -> dict:
+        """Generate TL;DR summary from parent chunks using DeepSeek."""
+        from app.models.pdf_document import PDFDocument
+        from app.models.embedding import PDFChunk
+
+        doc = await PDFService.get_by_id(doc_id, db, user_id)
+
+        # Return cached summary if exists
+        if doc.summary:
+            return {
+                "summary": doc.summary,
+                "generated_at": doc.summary_generated_at,
+                "cached": True,
+            }
+
+        # Get all parent chunks ordered
+        result = await db.execute(
+            select(PDFChunk)
+            .where(PDFChunk.pdf_id == doc_id, PDFChunk.chunk_type == "parent")
+            .order_by(PDFChunk.chunk_index)
+        )
+        parents = result.scalars().all()
+        if not parents:
+            raise HTTPException(400, "Chưa có parent chunks. Vui lòng đợi indexing hoàn tất.")
+
+        # Build prompt with parent texts
+        text_parts = [f"[Section {p.chunk_index}] {p.chunk_text}" for p in parents]
+        full_text = "\n\n".join(text_parts)
+
+        system_prompt = (
+            "Bạn là trợ lý nghiên cứu. Hãy tóm tắt paper dưới đây bằng tiếng Việt. "
+            "Yêu cầu: TL;DR ngắn gọn (3-5 câu), nêu rõ vấn đề, phương pháp, kết quả chính."
+        )
+        user_prompt = f"Dưới đây là nội dung paper:\n\n{full_text}\n\nHãy tóm tắt:"
+
+        answer, prompt_tokens, completion_tokens = await asyncio.to_thread(
+            lambda: DeepSeekProvider.generate(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+            )
+        )
+
+        # Cache summary
+        now = datetime.utcnow()
+        doc.summary = answer
+        doc.summary_generated_at = now
+        await db.flush()
+        # commit will be handled by get_db
+
+        logger.info(f"Generated summary for PDF: {doc_id} ({prompt_tokens + completion_tokens} tokens)")
+
+        return {
+            "summary": answer,
+            "generated_at": now,
+            "cached": False,
+        }
+
+    @staticmethod
     async def process_pdf(pdf_id: uuid.UUID) -> None:
         """Background pipeline: download -> extract -> chunk -> embed -> finish
 
@@ -285,17 +349,21 @@ class PDFService:
                     logger.exception("Failed to load embedding model")
                     return
 
-                # Prepare embeddings in batches
-                chunk_texts = [c.chunk_text for c in chunks]
-                chunk_ids = [c.id for c in chunks]
-                batch_size = 32
-                for i in range(0, len(chunk_texts), batch_size):
-                    batch_texts = chunk_texts[i : i + batch_size]
-                    batch_ids = chunk_ids[i : i + batch_size]
-                    # Offload heavy embedding work to thread to avoid blocking event loop
-                    vectors = await asyncio.to_thread(EmbeddingProvider.embed_texts, batch_texts)
-                    await EmbeddingService.batch_create_embeddings(session, batch_ids, vectors)
-                    await session.flush()
+                # Embed only children chunks (parents dùng cho context/summarize)
+                child_chunks = [c for c in chunks if c.chunk_type == "child"]
+                if child_chunks:
+                    chunk_texts = [c.chunk_text for c in child_chunks]
+                    chunk_ids = [c.id for c in child_chunks]
+                    batch_size = 32
+                    for i in range(0, len(chunk_texts), batch_size):
+                        batch_texts = chunk_texts[i : i + batch_size]
+                        batch_ids = chunk_ids[i : i + batch_size]
+                        vectors = await asyncio.to_thread(EmbeddingProvider.embed_texts, batch_texts)
+                        await EmbeddingService.batch_create_embeddings(session, batch_ids, vectors)
+                        await session.flush()
+                    logger.info(f"Embedded {len(child_chunks)} children for PDF: {pdf_id}")
+                else:
+                    logger.warning(f"No children to embed for PDF: {pdf_id}")
 
                 # Mark as indexed (done)
                 doc.status = ProcessingStatus.INDEXED

@@ -17,6 +17,7 @@ from app.schemas.pdf_schema import (
     PDFListResponse,
     PDFDocumentResponse,
     DeleteResponse,
+    SummarizeResponse,
 )
 from app.models.pdf_document import PDFDocument
 from app.models.embedding import PDFChunk, PDFEmbedding
@@ -97,6 +98,20 @@ async def delete_pdf(
 ):
     doc = await PDFService.delete(doc_id, db, current_user["user_id"])
     return DeleteResponse(message="Đã xóa thành công.", id=doc.id)
+
+
+@router.post("/{doc_id}/summarize", response_model=SummarizeResponse)
+async def summarize_pdf(
+    doc_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    result = await PDFService.summarize(doc_id, db, current_user["user_id"])
+    return SummarizeResponse(
+        summary=result["summary"],
+        generated_at=result["generated_at"],
+        cached=result["cached"],
+    )
 
 
 @router.post("/{doc_id}/index", status_code=202)
