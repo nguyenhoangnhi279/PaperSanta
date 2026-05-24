@@ -67,12 +67,8 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
     try {
       const data = await fetchSession(sid, token);
       setSessionId(data.id);
-      setMessages((data.messages || []).map((m: any) => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        citations: m.citations,
-      })));
+      setMessages(data.messages || []);
+      if (data.pdf_ids?.length) setSelectedPdfIds(data.pdf_ids);
       setShowSessions(false);
     } catch { /* ignore */ }
   };
@@ -93,9 +89,9 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
     if (!text || loading || selectedPdfIds.length === 0) return;
 
     const userMsg: ChatMessage = {
-      id: Date.now().toString(),
       role: 'user',
       content: text,
+      ts: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
@@ -107,13 +103,16 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
       setMessages((prev) => [
         ...prev,
         {
-          id: result.session_id + '-resp',
           role: 'assistant',
           content: result.answer,
+          ts: new Date().toISOString(),
+          tokens: { prompt: result.prompt_tokens, completion: result.completion_tokens },
           citations: result.citations?.map((c: any) => ({
-            pdf_name: c.pdf_name || '',
+            chunk_id: c.chunk_id || '',
             chunk_text: c.chunk_text || '',
             score: c.score || 0,
+            pdf_id: c.pdf_id || '',
+            pdf_name: c.pdf_name || '',
             page_number: c.page_number,
           })),
         },
@@ -122,7 +121,7 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
     } catch (err: any) {
       setMessages((prev) => [
         ...prev,
-        { id: 'error-' + Date.now(), role: 'assistant', content: `Error: ${err.message}` },
+        { role: 'assistant', content: `Error: ${err.message}`, ts: new Date().toISOString() },
       ]);
     } finally {
       setLoading(false);
@@ -283,8 +282,8 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
               <p className="text-xs italic">Select PDFs above and ask a question.</p>
             </div>
           ) : (
-            messages.map((m) => (
-              <div key={m.id} className="flex gap-3">
+            messages.map((m, idx) => (
+              <div key={m.ts + '-' + idx} className="flex gap-3">
                 <div
                   className={cn(
                     'w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs',

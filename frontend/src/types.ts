@@ -11,26 +11,28 @@ export interface PDFDocument {
   updated_at: string;
 }
 
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  citations?: Citation[];
-  timestamp?: number;
-}
-
 export interface Citation {
-  pdf_name: string;
+  chunk_id: string;
   chunk_text: string;
   score: number;
+  pdf_id: string;
+  pdf_name: string;
   page_number?: number;
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  ts: string;
+  tokens?: { prompt: number; completion: number };
+  citations?: Citation[];
 }
 
 export interface ChatSession {
   id: string;
   title: string;
   created_at: string;
-  message_count?: number;
+  pdf_ids: string[];
   messages?: ChatMessage[];
 }
 
