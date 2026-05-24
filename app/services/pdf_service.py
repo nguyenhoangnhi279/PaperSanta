@@ -250,9 +250,19 @@ class PDFService:
                 except Exception:
                     logger.exception("Failed to delete existing chunks; continuing")
 
-                # Chunk the full document text
-                full_text = "\n".join(pages_text)
-                chunks = await EmbeddingService.chunk_pdf(session, pdf_id, full_text)
+                # Chunk per-page: mỗi page chunk riêng, gắn page_number
+                chunks = []
+                chunk_offset = 0
+                for page_num, page_text in enumerate(pages_text, start=1):
+                    if not page_text.strip():
+                        continue
+                    page_chunks = await EmbeddingService.chunk_pdf(
+                        session, pdf_id, page_text,
+                        page_number=page_num,
+                        chunk_index_offset=chunk_offset,
+                    )
+                    chunks.extend(page_chunks)
+                    chunk_offset += len(page_chunks)
                 await session.flush()
 
                 if not chunks:

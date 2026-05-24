@@ -59,9 +59,9 @@ async def drop_tables():
     logger.info("Dropping all tables...")
     async with engine.begin() as conn:
         for table in TABLES:
-            await conn.execute(text(f"TRUNCATE TABLE {table} CASCADE"))
-            logger.info(f"Truncated {table}")
-    logger.info("All tables truncated")
+            await conn.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
+            logger.info(f"Dropped {table}")
+    logger.info("All tables dropped — will be recreated on next startup")
 
 async def main():
     logger.info("=" * 50)

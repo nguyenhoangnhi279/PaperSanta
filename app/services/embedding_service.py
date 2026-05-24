@@ -23,9 +23,11 @@ class EmbeddingService:
         text: str,
         chunk_size: int = 1000,
         overlap: int = 200,
+        page_number: int | None = None,
+        chunk_index_offset: int = 0,
     ) -> list[PDFChunk]:
         """
-        Split PDF text thành chunks với overlap
+        Split PDF text thành chunks với overlap, gắn page_number nếu có.
         
         Args:
             session: Database session
@@ -33,17 +35,18 @@ class EmbeddingService:
             text: Extracted text từ PDF
             chunk_size: Kích thước mỗi chunk (characters)
             overlap: Overlap giữa các chunks
+            page_number: Số trang (nếu chunk theo page)
+            chunk_index_offset: Offset cho chunk_index (khi chunk nhiều pages)
         
         Returns:
             List of created PDFChunk objects
         """
         if not text or not text.strip():
-            logger.warning(f"Empty text for PDF {pdf_id}")
             return []
 
         chunks = []
         start_char = 0
-        chunk_index = 0
+        chunk_index = chunk_index_offset
 
         while start_char < len(text):
             end_char = min(start_char + chunk_size, len(text))
@@ -56,20 +59,20 @@ class EmbeddingService:
                     chunk_text=chunk_text,
                     start_char=start_char,
                     end_char=end_char,
-                    token_count=len(chunk_text.split()),  # rough estimate
+                    page_number=page_number,
+                    token_count=len(chunk_text.split()),
                 )
                 chunks.append(chunk)
                 session.add(chunk)
                 chunk_index += 1
 
-            # Move to next chunk with overlap, ensure progress
             next_start = end_char - overlap
             if next_start <= start_char:
                 next_start = start_char + 1
             start_char = max(next_start, 0)
 
-        await session.flush()  # Flush to generate IDs
-        logger.info(f"Created {len(chunks)} chunks for PDF {pdf_id}")
+        await session.flush()
+        logger.info(f"Created {len(chunks)} chunks for PDF {pdf_id} (page={page_number})")
         return chunks
 
     @staticmethod
