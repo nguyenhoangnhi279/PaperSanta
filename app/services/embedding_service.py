@@ -80,7 +80,7 @@ class EmbeddingService:
         session: AsyncSession,
         chunk_id: UUID,
         vector: list[float],
-        embedding_model: str = "text-embedding-3-small",
+        embedding_model: str = "all-MiniLM-L6-v2",
     ) -> PDFEmbedding:
         """
         Tạo embedding cho một chunk
@@ -112,7 +112,7 @@ class EmbeddingService:
         session: AsyncSession,
         chunk_ids: list[UUID],
         vectors: list[list[float]],
-        embedding_model: str = "text-embedding-3-small",
+        embedding_model: str = "all-MiniLM-L6-v2",
     ) -> list[PDFEmbedding]:
         """
         Batch tạo embeddings cho nhiều chunks
