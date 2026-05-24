@@ -5,6 +5,7 @@ export interface PDFDocument {
   file_size: number;
   page_count?: number;
   status: 'pending' | 'extracted' | 'indexed' | 'failed';
+  error_message?: string;
   extracted_text?: string;
   created_at: string;
   updated_at: string;

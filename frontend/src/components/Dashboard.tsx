@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, Search, ArrowUpDown, Trash2, Star, Clock } from 'lucide-react';
+import { Upload, FileText, Search, ArrowUpDown, Trash2, Star, Clock, CheckCircle2, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
-import { uploadPdfFile, deletePdfById } from '../api/pdf';
+import { uploadPdfFile, deletePdfById, getPdfStatus, indexPdfFile } from '../api/pdf';
 import type { PDFDocument, SortOption } from '../types';
 
 interface DashboardProps {
@@ -14,6 +14,13 @@ interface DashboardProps {
   onPaperDeleted: () => void;
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  pending: 'Đang xử lý',
+  extracted: 'Đang xử lý',
+  indexed: 'Hoàn tất',
+  failed: 'Thất bại',
+};
+
 export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaperDeleted }: DashboardProps) {
   const { user, session, signIn } = useAuth();
   const token = session?.access_token;
@@ -22,7 +29,45 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [paperToDelete, setPaperToDelete] = useState<{ id: string; title: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [errorVisible, setErrorVisible] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string; pdfId?: string } | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null);
+
+  const pollStatus = useCallback(async (id: string) => {
+    const maxAttempts = 60;
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      try {
+        const doc = await getPdfStatus(id, token);
+        if (doc.status === 'indexed') {
+          setToast({ type: 'success', message: `${doc.original_name} đã xử lý xong` });
+          setIsUploading(false);
+          return;
+        }
+        if (doc.status === 'failed') {
+          setToast({ type: 'error', message: doc.error_message || `${doc.original_name} xử lý thất bại`, pdfId: id });
+          setIsUploading(false);
+          return;
+        }
+      } catch {
+        // polling
+      }
+    }
+    setToast({ type: 'error', message: 'Xử lý quá lâu, vui lòng thử lại', pdfId: id });
+    setIsUploading(false);
+  }, [token]);
+
+  const handleRetry = async (id: string) => {
+    setRetrying(id);
+    try {
+      await indexPdfFile(id, token);
+      setToast(null);
+      pollStatus(id);
+    } catch (err: any) {
+      setToast({ type: 'error', message: err.message || 'Không thể thử lại' });
+    } finally {
+      setRetrying(null);
+    }
+  };
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -36,15 +81,19 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
 
       setIsUploading(true);
       try {
-        await uploadPdfFile(file, token);
+        const doc = await uploadPdfFile(file, token);
         onPaperAdded();
+        if (doc?.id) {
+          pollStatus(doc.id);
+        } else {
+          setIsUploading(false);
+        }
       } catch (err: any) {
-        setErrorVisible(err.message || 'Upload failed');
-      } finally {
+        setToast({ type: 'error', message: err.message || 'Upload thất bại' });
         setIsUploading(false);
       }
     },
-    [user, token, signIn, onPaperAdded]
+    [user, token, signIn, onPaperAdded, pollStatus]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -61,7 +110,7 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
       onPaperDeleted();
       setPaperToDelete(null);
     } catch (err: any) {
-      setErrorVisible(err.message || 'Delete failed');
+      setToast({ type: 'error', message: err.message || 'Delete failed' });
     } finally {
       setIsDeleting(false);
     }
@@ -188,9 +237,34 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        <p className="text-sm font-bold text-gray-700 truncate max-w-[400px]">
-                          {paper.original_name}
-                        </p>
+                        <div className="flex items-center gap-3">
+                          <p className="text-sm font-bold text-gray-700 truncate max-w-[320px]">
+                            {paper.original_name}
+                          </p>
+                          <span className={cn(
+                            'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border',
+                            paper.status === 'indexed' && 'text-green-700 bg-green-50 border-green-200',
+                            paper.status === 'failed' && 'text-red-700 bg-red-50 border-red-200',
+                            (paper.status === 'pending' || paper.status === 'extracted') && 'text-amber-700 bg-amber-50 border-amber-200',
+                          )}>
+                            {paper.status === 'pending' || paper.status === 'extracted' ? (
+                              <span className="flex items-center gap-1">
+                                <Loader2 size={10} className="animate-spin" />
+                                {STATUS_LABEL[paper.status]}
+                              </span>
+                            ) : paper.status === 'indexed' ? (
+                              <span className="flex items-center gap-1">
+                                <CheckCircle2 size={10} />
+                                {STATUS_LABEL[paper.status]}
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <AlertCircle size={10} />
+                                {STATUS_LABEL[paper.status]}
+                              </span>
+                            )}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-4 px-4 text-right">
                         <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
@@ -257,24 +331,46 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
           </div>
         )}
 
-        {errorVisible && (
+        {toast && (
           <div className="fixed bottom-8 right-8 z-50">
             <motion.div
               initial={{ x: 100, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 100, opacity: 0 }}
-              className="bg-red-600 text-white p-4 rounded-xl shadow-xl flex items-center gap-3 pr-6"
+              className={cn(
+                'p-4 rounded-xl shadow-xl flex items-center gap-3 pr-6',
+                toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+              )}
             >
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                <Trash2 size={16} />
+              <div className={cn(
+                'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
+                toast.type === 'success' ? 'bg-white/20' : 'bg-white/20'
+              )}>
+                {toast.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
               </div>
-              <div className="min-w-0">
-                <p className="font-bold text-sm">Action Failed</p>
-                <p className="text-xs opacity-90 truncate">{errorVisible}</p>
+              <div className="min-w-0 max-w-xs">
+                <p className="font-bold text-sm">{toast.type === 'success' ? 'Hoàn tất' : 'Lỗi'}</p>
+                <p className="text-xs opacity-90 truncate">{toast.message}</p>
               </div>
-              <button onClick={() => setErrorVisible(null)} className="ml-4 p-1 hover:bg-white/10 rounded">
-                <Upload size={16} className="rotate-45" />
-              </button>
+              <div className="flex items-center gap-2 ml-2">
+                {toast.type === 'error' && toast.pdfId && (
+                  <button
+                    onClick={() => handleRetry(toast.pdfId!)}
+                    disabled={retrying === toast.pdfId}
+                    className="p-1.5 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
+                    title="Thử lại"
+                  >
+                    {retrying === toast.pdfId ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <RotateCcw size={16} />
+                    )}
+                  </button>
+                )}
+                <button onClick={() => setToast(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+                  <Upload size={16} className="rotate-45" />
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

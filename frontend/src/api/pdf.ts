@@ -36,15 +36,7 @@ export async function uploadPdfFile(file: File, token?: string | null): Promise<
     headers: authHeaders(token),
   });
 
-  const data = await parseResponse<PDFDocument>(res);
-
-  if (data?.id) {
-    indexPdfFile(data.id, token).catch((err) =>
-      console.warn('Index trigger failed:', err)
-    );
-  }
-
-  return data;
+  return parseResponse<PDFDocument>(res);
 }
 
 export async function indexPdfFile(id: string, token?: string | null): Promise<any> {
@@ -53,6 +45,13 @@ export async function indexPdfFile(id: string, token?: string | null): Promise<a
     headers: authHeaders(token),
   });
   return parseResponse(res);
+}
+
+export async function getPdfStatus(id: string, token?: string | null): Promise<PDFDocument> {
+  const res = await fetch(`${API_BASE}/${id}`, {
+    headers: authHeaders(token),
+  });
+  return parseResponse<PDFDocument>(res);
 }
 
 export async function deletePdfById(id: string, token?: string | null): Promise<any> {
