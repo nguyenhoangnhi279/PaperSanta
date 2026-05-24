@@ -28,10 +28,14 @@ router = APIRouter(prefix="/api/pdf", tags=["PDF"])
 @router.post("/upload", response_model=UploadResponse, status_code=201)
 async def upload_pdf(
     file: UploadFile = File(..., description="File PDF cần upload"),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     doc = await PDFService.upload_pdf(file, db, current_user["user_id"])
+
+    await db.commit()
+    background_tasks.add_task(PDFService.process_pdf, doc.id)
 
     response = UploadResponse(
         id=doc.id,

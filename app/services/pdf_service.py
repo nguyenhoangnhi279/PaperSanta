@@ -206,6 +206,7 @@ class PDFService:
                     doc.status = ProcessingStatus.FAILED
                     doc.error_message = f"Download failed: {e}"
                     await session.flush()
+                    await session.commit()
                     logger.exception("Failed to download PDF for processing")
                     return
 
@@ -228,7 +229,16 @@ class PDFService:
                     doc.status = ProcessingStatus.FAILED
                     doc.error_message = f"Extraction failed: {e}"
                     await session.flush()
+                    await session.commit()
                     logger.exception("Failed to extract PDF text")
+                    return
+
+                if not doc.extracted_text or not doc.extracted_text.strip():
+                    doc.status = ProcessingStatus.FAILED
+                    doc.error_message = "Không thể trích xuất văn bản từ PDF (có thể là scanned PDF)"
+                    await session.flush()
+                    await session.commit()
+                    logger.warning(f"No text extracted from PDF: {pdf_id}")
                     return
 
                 # Remove any existing chunks (idempotency)
@@ -242,6 +252,26 @@ class PDFService:
                 full_text = "\n".join(pages_text)
                 chunks = await EmbeddingService.chunk_pdf(session, pdf_id, full_text)
                 await session.flush()
+
+                if not chunks:
+                    doc.status = ProcessingStatus.FAILED
+                    doc.error_message = "Không thể tạo chunks từ văn bản"
+                    await session.flush()
+                    await session.commit()
+                    logger.warning(f"No chunks created for PDF: {pdf_id}")
+                    return
+
+                # Validate embedding model before starting
+                try:
+                    await asyncio.to_thread(EmbeddingProvider.get_model)
+                    logger.info(f"Embedding model ready for PDF: {pdf_id}")
+                except Exception as e:
+                    doc.status = ProcessingStatus.FAILED
+                    doc.error_message = f"Không thể tải embedding model: {e}"
+                    await session.flush()
+                    await session.commit()
+                    logger.exception("Failed to load embedding model")
+                    return
 
                 # Prepare embeddings in batches
                 chunk_texts = [c.chunk_text for c in chunks]
@@ -258,6 +288,7 @@ class PDFService:
                 # Mark as indexed (done)
                 doc.status = ProcessingStatus.INDEXED
                 await session.flush()
+                await session.commit()
                 logger.info(f"Completed indexing PDF: {pdf_id}")
 
             except Exception as e:
@@ -267,5 +298,6 @@ class PDFService:
                         doc.status = ProcessingStatus.FAILED
                         doc.error_message = str(e)
                         await session.flush()
+                        await session.commit()
                 except Exception:
                     logger.exception("Failed to mark document as failed")

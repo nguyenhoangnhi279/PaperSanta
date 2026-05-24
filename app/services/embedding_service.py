@@ -63,8 +63,11 @@ class EmbeddingService:
                 session.add(chunk)
                 chunk_index += 1
 
-            # Move to next chunk with overlap
-            start_char = end_char - overlap
+            # Move to next chunk with overlap, ensure progress
+            next_start = end_char - overlap
+            if next_start <= start_char:
+                next_start = start_char + 1
+            start_char = max(next_start, 0)
 
         await session.flush()  # Flush to generate IDs
         logger.info(f"Created {len(chunks)} chunks for PDF {pdf_id}")
