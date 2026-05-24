@@ -54,6 +54,14 @@ class ChatSessionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ChatSessionListItem(BaseModel):
+    id: UUID
+    title: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ChatSessionListResponse(BaseModel):
-    sessions: list[ChatSessionResponse]
+    sessions: list[ChatSessionListItem]
     total: int
