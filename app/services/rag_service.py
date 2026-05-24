@@ -42,6 +42,7 @@ class RAGService:
             )
             .join(PDFEmbedding, PDFEmbedding.chunk_id == PDFChunk.id)
             .join(PDFDocument, PDFDocument.id == PDFChunk.pdf_id)
+            .where(PDFChunk.chunk_type == "child")
             .order_by(PDFEmbedding.vector.cosine_distance(query_vector))
             .limit(top_k)
         )
@@ -57,8 +58,15 @@ class RAGService:
             score = max(0.0, 1.0 - distance)
             if score < settings.RAG_MIN_SCORE:
                 continue
+            # Resolve parent context
+            context_text = chunk.chunk_text
+            if chunk.parent_id:
+                parent = await session.get(PDFChunk, chunk.parent_id)
+                if parent:
+                    context_text = parent.chunk_text
             results.append({
                 "chunk": chunk,
+                "context_text": context_text,
                 "score": round(score, 4),
                 "pdf_id": pdf_id,
                 "pdf_name": pdf_name,
@@ -99,9 +107,10 @@ class RAGService:
         citation_list = []
         for i, r in enumerate(retrieved):
             chunk: PDFChunk = r["chunk"]
+            context_text = r.get("context_text", chunk.chunk_text)
             context_parts.append(
                 f"[Chunk {i + 1}] (PDF: {r['pdf_name']}, Độ liên quan: {r['score']})\n"
-                f"{chunk.chunk_text}\n"
+                f"{context_text}\n"
             )
             citation_list.append({
                 "chunk_id": chunk.id,
