@@ -10,11 +10,20 @@ from typing import Optional
 
 class CitationResult(BaseModel):
     chunk_id: UUID
-    chunk_index: int
     chunk_text: str
     score: float
     pdf_id: UUID
     pdf_name: str
+    page_number: Optional[int] = None
+
+
+class CitationInput(BaseModel):
+    chunk_id: UUID
+    chunk_text: str
+    score: float
+    pdf_id: UUID
+    pdf_name: str
+    page_number: Optional[int] = None
 
 
 class ChatRequest(BaseModel):
@@ -31,25 +40,21 @@ class ChatResponse(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class ChatMessageResponse(BaseModel):
-    id: UUID
+class ChatMessageItem(BaseModel):
     role: str
     content: str
-    created_at: datetime
-    prompt_tokens: Optional[int] = None
-    completion_tokens: Optional[int] = None
-
-    model_config = ConfigDict(from_attributes=True)
+    ts: datetime
+    tokens: Optional[dict] = None
+    citations: list[CitationResult] = []
 
 
 class ChatSessionResponse(BaseModel):
     id: UUID
     title: Optional[str] = None
     created_at: datetime
-    messages: list[ChatMessageResponse] = []
+    messages: list[ChatMessageItem] = []
+    pdf_ids: list[UUID] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -58,6 +63,7 @@ class ChatSessionListItem(BaseModel):
     id: UUID
     title: Optional[str] = None
     created_at: datetime
+    pdf_ids: list[UUID] = []
 
     model_config = ConfigDict(from_attributes=True)
 
