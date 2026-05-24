@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.pdf_document import PDFDocument
 from app.models.embedding import PDFChunk, PDFEmbedding
-from app.schemas.embedding_schema import PDFChunkResponse, PDFEmbeddingCreate
 
 logger = logging.getLogger(__name__)
 
