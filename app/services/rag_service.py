@@ -123,11 +123,8 @@ class RAGService:
 
         context = "\n---\n".join(context_parts)
         user_prompt = (
-            f"Dựa vào các đoạn trích dẫn từ tài liệu PDF, hãy phân tích và trả lời câu hỏi sau.\n\n"
             f"Ngữ cảnh trích dẫn:\n{context}\n\n"
-            f"Câu hỏi: {query_text}\n\n"
-            f"Hãy trả lời chi tiết, có trích dẫn trang cụ thể, dùng markdown. "
-            f"Kết luận bằng 2-3 câu tóm tắt."
+            f"Câu hỏi: {query_text}"
         )
 
         # ── 3. Generate ─────────────────────────────────────────────────────
