@@ -7,7 +7,6 @@ import {
   LogOut,
   LogIn,
   User,
-  Upload,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
@@ -18,8 +17,6 @@ interface SidebarProps {
   setActiveTab: (tab: ActiveView) => void;
   recentItems?: { id: string; title: string }[];
   onSelectItem?: (id: string) => void;
-  uploading: boolean;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 const menuItems: { id: ActiveView; label: string; icon: typeof LayoutDashboard }[] = [
@@ -34,8 +31,6 @@ export default function Sidebar({
   setActiveTab,
   recentItems = [],
   onSelectItem,
-  uploading,
-  fileInputRef,
 }: SidebarProps) {
   const { user, signIn, logout } = useAuth();
 
@@ -112,16 +107,6 @@ export default function Sidebar({
 
       {/* Bottom Actions */}
       <div className="p-4 space-y-2 border-t border-gray-100">
-        {/* Upload Button */}
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 shadow-md shadow-blue-200"
-        >
-          <Upload size={14} />
-          {uploading ? 'Uploading...' : 'Upload file'}
-        </button>
-
         {/* Auth */}
         {user ? (
           <button

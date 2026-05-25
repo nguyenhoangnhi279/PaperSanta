@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
@@ -6,7 +6,7 @@ import Dashboard from './components/Dashboard';
 import Reader from './components/Reader';
 import Comparison from './components/Comparison';
 import Discovery from './components/Discovery';
-import { fetchPdfs, uploadPdfFile } from './api/pdf';
+import { fetchPdfs } from './api/pdf';
 import type { PDFDocument, ActiveView } from './types';
 
 function LoginPage() {
@@ -42,9 +42,6 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<ActiveView>('dashboard');
   const [papers, setPapers] = useState<PDFDocument[]>([]);
   const [selectedPaper, setSelectedPaper] = useState<PDFDocument | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const fetchPapers = useCallback(async () => {
     if (!token) return;
     try {
@@ -61,18 +58,6 @@ function AppContent() {
       else setPapers([]);
     }
   }, [user, loading, fetchPapers]);
-
-  const handleUpload = async (file: File) => {
-    setUploading(true);
-    try {
-      await uploadPdfFile(file, token);
-      await fetchPapers();
-    } catch (err) {
-      console.error('upload error:', err);
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleSelectPaper = (paper: PDFDocument) => {
     setSelectedPaper(paper);
@@ -114,8 +99,6 @@ function AppContent() {
         setActiveTab={setActiveTab}
         recentItems={recentItems}
         onSelectItem={handleSelectRecent}
-        uploading={uploading}
-        fileInputRef={fileInputRef}
       />
 
       <main className="flex-1 overflow-hidden relative">
@@ -179,20 +162,6 @@ function AppContent() {
         </AnimatePresence>
       </main>
 
-      {/* Hidden file input for sidebar upload */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) {
-            handleUpload(file);
-            e.target.value = '';
-          }
-        }}
-      />
     </div>
   );
 }
