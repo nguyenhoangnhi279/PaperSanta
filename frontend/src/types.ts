@@ -62,3 +62,10 @@ export interface SearchResponse {
   query: string;
   papers: SearchResult[];
 }
+
+export interface RelatedPapersResponse {
+  source_pdf_id: string;
+  extracted_topics: string[];
+  related_papers: SearchResult[];
+  method: 'precomputed' | 'title_fallback' | string;
+}
