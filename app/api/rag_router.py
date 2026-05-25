@@ -25,9 +25,8 @@ from app.schemas.chat_schema import (
     CitationResult,
     ChatSessionResponse,
     ChatSessionListResponse,
-    ChatMessageResponse,
 )
-from app.models.chat import ChatSession, ChatMessage
+from app.models.chat import ChatSession
 
 logger = logging.getLogger(__name__)
 
@@ -87,8 +86,18 @@ async def chat_with_pdfs(
     - Nếu session_id có: tiếp tục hội thoại (chỉ dùng context từ PDFs)
     """
     # Verify all PDF IDs belong to user
-    for pid in req.pdf_ids:
-        await PDFService.get_by_id(pid, db, current_user["user_id"])
+    from sqlalchemy import select
+    from app.models.pdf_document import PDFDocument
+    verify = await db.execute(
+        select(PDFDocument.id).where(
+            PDFDocument.id.in_(req.pdf_ids),
+            PDFDocument.user_id == current_user["user_id"],
+        )
+    )
+    found_ids = {r[0] for r in verify.all()}
+    missing = [str(pid) for pid in req.pdf_ids if pid not in found_ids]
+    if missing:
+        raise HTTPException(404, f"PDFs not found: {', '.join(missing)}")
 
     result = await RAGService.generate_answer(
         db=db,
@@ -142,7 +151,7 @@ async def get_session(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Lấy chi tiết session + messages"""
+    """Lấy chi tiết session + messages (messages từ JSONB)"""
     result = await db.execute(
         select(ChatSession).where(
             ChatSession.id == session_id,
@@ -153,12 +162,6 @@ async def get_session(
     if not session:
         raise HTTPException(404, "Session not found")
 
-    msg_result = await db.execute(
-        select(ChatMessage)
-        .where(ChatMessage.session_id == session_id)
-        .order_by(ChatMessage.created_at)
-    )
-    session.messages = msg_result.scalars().all()
     return session
 
 

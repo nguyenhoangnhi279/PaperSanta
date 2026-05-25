@@ -4,7 +4,9 @@ rag_service.py — RAG: Retrieval + Generation
 
 import logging
 import time
+import asyncio
 from uuid import UUID
+from datetime import datetime, timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,7 +15,7 @@ from app.core.embedding_provider import EmbeddingProvider
 from app.core.deepseek_provider import DeepSeekProvider
 from app.models.pdf_document import PDFDocument
 from app.models.embedding import PDFChunk, PDFEmbedding
-from app.models.chat import ChatSession, ChatMessage, MessageCitation, SessionPDF
+from app.models.chat import ChatSession
 
 logger = logging.getLogger(__name__)
 
@@ -27,15 +29,10 @@ class RAGService:
         pdf_ids: list[UUID] | None = None,
         top_k: int = 5,
     ) -> list[dict]:
-        """
-        Embed câu hỏi → cosine similarity search → trả về top chunks
-        """
         logger.info(f"Similarity search: query='{query_text[:50]}...', pdf_ids={pdf_ids}, top_k={top_k}")
 
-        # Embed query
-        query_vector = EmbeddingProvider.embed_text(query_text)
+        query_vector = await asyncio.to_thread(EmbeddingProvider.embed_text, query_text)
 
-        # Build query: join chunks → embeddings, filter by pdf_ids
         stmt = (
             select(
                 PDFChunk,
@@ -45,6 +42,7 @@ class RAGService:
             )
             .join(PDFEmbedding, PDFEmbedding.chunk_id == PDFChunk.id)
             .join(PDFDocument, PDFDocument.id == PDFChunk.pdf_id)
+            .where(PDFChunk.chunk_type == "child")
             .order_by(PDFEmbedding.vector.cosine_distance(query_vector))
             .limit(top_k)
         )
@@ -60,8 +58,15 @@ class RAGService:
             score = max(0.0, 1.0 - distance)
             if score < settings.RAG_MIN_SCORE:
                 continue
+            # Resolve parent context
+            context_text = chunk.chunk_text
+            if chunk.parent_id:
+                parent = await session.get(PDFChunk, chunk.parent_id)
+                if parent:
+                    context_text = parent.chunk_text
             results.append({
                 "chunk": chunk,
+                "context_text": context_text,
                 "score": round(score, 4),
                 "pdf_id": pdf_id,
                 "pdf_name": pdf_name,
@@ -79,14 +84,6 @@ class RAGService:
         session_id: UUID | None = None,
         top_k: int = 5,
     ) -> dict:
-        """
-        Full RAG pipeline:
-        1. Retrieve relevant chunks
-        2. Build context + prompt
-        3. Call DeepSeek
-        4. Save ChatSession + ChatMessage + MessageCitation
-        5. Return answer + citations
-        """
         logger.info(f"generate_answer: session={session_id}, query='{query_text[:50]}...'")
 
         # ── 1. Retrieve ──────────────────────────────────────────────────────
@@ -110,32 +107,35 @@ class RAGService:
         citation_list = []
         for i, r in enumerate(retrieved):
             chunk: PDFChunk = r["chunk"]
+            context_text = r.get("context_text", chunk.chunk_text)
             context_parts.append(
                 f"[Chunk {i + 1}] (PDF: {r['pdf_name']}, Độ liên quan: {r['score']})\n"
-                f"{chunk.chunk_text}\n"
+                f"{context_text}\n"
             )
             citation_list.append({
                 "chunk_id": chunk.id,
-                "chunk_index": chunk.chunk_index,
                 "chunk_text": chunk.chunk_text[:200],
                 "score": r["score"],
                 "pdf_id": r["pdf_id"],
                 "pdf_name": r["pdf_name"],
+                "page_number": chunk.page_number,
             })
 
         context = "\n---\n".join(context_parts)
         user_prompt = (
-            f"Dựa vào các đoạn trích dẫn sau đây từ tài liệu PDF, hãy trả lời câu hỏi.\n\n"
-            f"Các đoạn trích dẫn:\n{context}\n\n"
-            f"Câu hỏi: {query_text}\n\n"
-            f"Trả lời:"
+            f"Ngữ cảnh trích dẫn:\n{context}\n\n"
+            f"Câu hỏi: {query_text}"
         )
 
         # ── 3. Generate ─────────────────────────────────────────────────────
         t1 = time.time()
-        answer, prompt_tokens, completion_tokens = DeepSeekProvider.generate(
-            system_prompt=settings.RAG_SYSTEM_PROMPT,
-            user_prompt=user_prompt,
+        answer, prompt_tokens, completion_tokens = await asyncio.to_thread(
+            lambda: DeepSeekProvider.generate(
+                system_prompt=settings.RAG_SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+                temperature=settings.RAG_TEMPERATURE,
+                max_tokens=settings.RAG_MAX_TOKENS,
+            )
         )
         generate_time = time.time() - t1
 
@@ -144,7 +144,9 @@ class RAGService:
             f"tokens={prompt_tokens + completion_tokens}"
         )
 
-        # ── 4. Save to DB ──────────────────────────────────────────────────
+        # ── 4. Save to DB (JSONB) ──────────────────────────────────────────
+        now = datetime.now(timezone.utc)
+
         # Get or create session
         if session_id:
             chat_session = await db.get(ChatSession, session_id)
@@ -157,47 +159,36 @@ class RAGService:
             db.add(chat_session)
             await db.flush()
 
-        # Link PDFs to session
+        # Merge pdf_ids
         for pid in pdf_ids:
-            exists = await db.execute(
-                select(SessionPDF).where(
-                    SessionPDF.session_id == chat_session.id,
-                    SessionPDF.pdf_id == pid,
-                )
-            )
-            if not exists.scalar_one_or_none():
-                db.add(SessionPDF(session_id=chat_session.id, pdf_id=pid))
+            if pid not in chat_session.pdf_ids:
+                chat_session.pdf_ids.append(pid)
 
-        # Save user message
-        user_msg = ChatMessage(
-            session_id=chat_session.id,
-            role="user",
-            content=query_text,
+        # Save user message to JSONB
+        user_msg = {
+            "role": "user",
+            "content": query_text,
+            "ts": now.isoformat(),
+        }
+        chat_session.messages.append(user_msg)
+
+        # Save AI message to JSONB
+        ai_msg = {
+            "role": "assistant",
+            "content": answer,
+            "ts": now.isoformat(),
+            "tokens": {"prompt": prompt_tokens, "completion": completion_tokens},
+            "citations": citation_list,
+        }
+        chat_session.messages.append(ai_msg)
+
+        # Update char count
+        chat_session.history_char_count = sum(
+            len(m.get("content", "")) for m in chat_session.messages
         )
-        db.add(user_msg)
-
-        # Save AI message
-        ai_msg = ChatMessage(
-            session_id=chat_session.id,
-            role="ai",
-            content=answer,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-        )
-        db.add(ai_msg)
-        await db.flush()
-
-        # Save citations
-        for r in retrieved:
-            chunk: PDFChunk = r["chunk"]
-            citation = MessageCitation(
-                message_id=ai_msg.id,
-                chunk_id=chunk.id,
-            )
-            db.add(citation)
 
         await db.flush()
-        logger.info(f"Saved session={chat_session.id}, msg_count=2, citations={len(retrieved)}")
+        logger.info(f"Saved session={chat_session.id}, messages={len(chat_session.messages)}")
 
         return {
             "answer": answer,

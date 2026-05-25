@@ -33,15 +33,23 @@ class PDFChunk(Base):
         index=True,
     )
 
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("pdf_chunks.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # ── Chunk info ────────────────────────────────────────────────────────────
-    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)  # thứ tự chunk
-    chunk_text: Mapped[str] = mapped_column(Text, nullable=False)      # nội dung chunk
-    token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)  # số token
-    
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
+    token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    chunk_type: Mapped[str] = mapped_column(String(10), default="child", nullable=False)
+
     # ── Metadata ──────────────────────────────────────────────────────────────
-    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)  # trang nào
-    start_char: Mapped[int | None] = mapped_column(Integer, nullable=True)   # vị trí bắt đầu
-    end_char: Mapped[int | None] = mapped_column(Integer, nullable=True)     # vị trí kết thúc
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    start_char: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    end_char: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # ── Timestamps ────────────────────────────────────────────────────────────
     created_at: Mapped[datetime] = mapped_column(
@@ -63,9 +71,15 @@ class PDFChunk(Base):
         back_populates="chunk",
         cascade="all, delete-orphan",
     )
+    parent: Mapped["PDFChunk | None"] = relationship(
+        "PDFChunk", remote_side="PDFChunk.id", back_populates="children",
+    )
+    children: Mapped[list["PDFChunk"]] = relationship(
+        "PDFChunk", back_populates="parent",
+    )
 
     def __repr__(self) -> str:
-        return f"<PDFChunk pdf_id={self.pdf_id} chunk_index={self.chunk_index}>"
+        return f"<PDFChunk pdf_id={self.pdf_id} chunk_index={self.chunk_index} type={self.chunk_type}>"
 
 
 class PDFEmbedding(Base):
@@ -87,9 +101,9 @@ class PDFEmbedding(Base):
     )
 
     # ── Embedding vector ──────────────────────────────────────────────────────
-    # Dùng pgvector extension của PostgreSQL (dimension = 1536 cho OpenAI embeddings)
+    # Dùng pgvector extension của PostgreSQL (dimension = 384 cho all-MiniLM-L6-v2)
     vector: Mapped[str] = mapped_column(
-        Vector(1536),
+        Vector(384),
         nullable=False,
         index=True,
     )
@@ -97,12 +111,12 @@ class PDFEmbedding(Base):
     # ── Embedding metadata ────────────────────────────────────────────────────
     embedding_model: Mapped[str] = mapped_column(
         String(100),
-        default="text-embedding-3-small",  # OpenAI model
+        default="all-MiniLM-L6-v2",
         nullable=False,
     )
     embedding_dimension: Mapped[int] = mapped_column(
         Integer,
-        default=1536,
+        default=384,
         nullable=False,
     )
 

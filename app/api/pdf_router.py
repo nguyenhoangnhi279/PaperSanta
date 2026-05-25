@@ -17,6 +17,7 @@ from app.schemas.pdf_schema import (
     PDFListResponse,
     PDFDocumentResponse,
     DeleteResponse,
+    SummarizeResponse,
 )
 from app.models.pdf_document import PDFDocument
 from app.models.embedding import PDFChunk, PDFEmbedding
@@ -28,10 +29,14 @@ router = APIRouter(prefix="/api/pdf", tags=["PDF"])
 @router.post("/upload", response_model=UploadResponse, status_code=201)
 async def upload_pdf(
     file: UploadFile = File(..., description="File PDF cần upload"),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     doc = await PDFService.upload_pdf(file, db, current_user["user_id"])
+
+    await db.commit()
+    background_tasks.add_task(PDFService.process_pdf, doc.id)
 
     response = UploadResponse(
         id=doc.id,
@@ -93,6 +98,20 @@ async def delete_pdf(
 ):
     doc = await PDFService.delete(doc_id, db, current_user["user_id"])
     return DeleteResponse(message="Đã xóa thành công.", id=doc.id)
+
+
+@router.post("/{doc_id}/summarize", response_model=SummarizeResponse)
+async def summarize_pdf(
+    doc_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    result = await PDFService.summarize(doc_id, db, current_user["user_id"])
+    return SummarizeResponse(
+        summary=result["summary"],
+        generated_at=result["generated_at"],
+        cached=result["cached"],
+    )
 
 
 @router.post("/{doc_id}/index", status_code=202)
