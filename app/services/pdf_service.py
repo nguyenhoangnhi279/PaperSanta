@@ -10,7 +10,7 @@ from fastapi import UploadFile, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
 from supabase import create_client, Client
-from pypdf import PdfReader, PdfWriter
+from pypdf import PdfReader
 
 from app.core.config import settings
 from app.models.pdf_document import PDFDocument, ProcessingStatus
@@ -24,40 +24,16 @@ from app.core.deepseek_provider import DeepSeekProvider
 import httpx
 import asyncio
 
+_supabase_client: Client | None = None
+
 def get_supabase_client() -> Client:
+    global _supabase_client
+    if _supabase_client is not None:
+        return _supabase_client
     if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
         raise HTTPException(500, "Supabase credentials chưa được cấu hình")
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-
-
-def compress_pdf(content: bytes) -> bytes:
-    try:
-        reader = PdfReader(BytesIO(content))
-        writer = PdfWriter()
-
-        for page in reader.pages:
-            writer.add_page(page)
-
-        for page in writer.pages:
-            page.compress_content_streams()
-
-        writer.add_metadata({"/Producer": "PaperSanta PDF Service"})
-
-        output = BytesIO()
-        writer.write(output)
-        compressed = output.getvalue()
-
-        original_size = len(content)
-        compressed_size = len(compressed)
-        compression_ratio = (1 - compressed_size / original_size) * 100
-
-        logger.info(f"PDF compressed: {original_size} -> {compressed_size} bytes ({compression_ratio:.1f}% reduction)")
-
-        return compressed
-
-    except Exception as e:
-        logger.warning(f"PDF compression failed: {e}, using original file")
-        return content
+    _supabase_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    return _supabase_client
 
 
 class PDFService:
@@ -79,22 +55,23 @@ class PDFService:
                 f"File quá lớn. Tối đa {settings.MAX_FILE_SIZE_MB}MB."
             )
 
-        compressed_content = compress_pdf(content)
-
         unique_filename = f"{uuid.uuid4().hex}.pdf"
         storage_path = f"{user_id}/{unique_filename}"
 
         try:
             supabase = get_supabase_client()
-            supabase.storage.from_(settings.SUPABASE_STORAGE_BUCKET).upload(
-                path=storage_path,
-                file=compressed_content,
-                file_options={"content-type": "application/pdf"}
+            bucket = supabase.storage.from_(settings.SUPABASE_STORAGE_BUCKET)
+            await asyncio.to_thread(
+                lambda: bucket.upload(
+                    path=storage_path,
+                    file=content,
+                    file_options={"content-type": "application/pdf"}
+                )
             )
 
-            public_url = supabase.storage.from_(settings.SUPABASE_STORAGE_BUCKET).get_public_url(storage_path)
+            public_url = await asyncio.to_thread(lambda: bucket.get_public_url(storage_path))
 
-            logger.info(f"Uploaded to Supabase Storage: {storage_path} ({len(compressed_content)} bytes)")
+            logger.info(f"Uploaded to Supabase Storage: {storage_path} ({len(content)} bytes)")
 
         except Exception as e:
             logger.error(f"Failed to upload to Supabase Storage: {e}")
@@ -153,14 +130,16 @@ class PDFService:
 
         try:
             supabase = get_supabase_client()
-            supabase.storage.from_(settings.SUPABASE_STORAGE_BUCKET).remove([doc.filename])
+            bucket = supabase.storage.from_(settings.SUPABASE_STORAGE_BUCKET)
+            await asyncio.to_thread(lambda: bucket.remove([doc.filename]))
             logger.info(f"Deleted from Supabase Storage: {doc.filename}")
         except Exception as e:
             logger.warning(f"Could not delete file from Supabase Storage: {e}")
 
-        # Xoá chunks + embeddings (cascade ORM + DB tự xoá)
-        await db.delete(doc)
-        await db.flush()
+        # Bulk delete chunks (DB cascade ON DELETE CASCADE xoá embeddings tự động)
+        from app.models.embedding import PDFChunk
+        await db.execute(delete(PDFChunk).where(PDFChunk.pdf_id == doc_id))
+        await db.execute(delete(PDFDocument).where(PDFDocument.id == doc_id))
         await db.commit()
 
         return doc
@@ -344,18 +323,6 @@ class PDFService:
                     logger.warning(f"No chunks created for PDF: {pdf_id}")
                     return
 
-                # Validate embedding model before starting
-                try:
-                    await asyncio.to_thread(EmbeddingProvider.get_model)
-                    logger.info(f"Embedding model ready for PDF: {pdf_id}")
-                except Exception as e:
-                    doc.status = ProcessingStatus.FAILED
-                    doc.error_message = f"Không thể tải embedding model: {e}"
-                    await session.flush()
-                    await session.commit()
-                    logger.exception("Failed to load embedding model")
-                    return
-
                 # Embed only children chunks (parents dùng cho context/summarize)
                 child_chunks = [c for c in chunks if c.chunk_type == "child"]
                 if child_chunks:
@@ -367,7 +334,7 @@ class PDFService:
                         batch_ids = chunk_ids[i : i + batch_size]
                         vectors = await asyncio.to_thread(EmbeddingProvider.embed_texts, batch_texts)
                         await EmbeddingService.batch_create_embeddings(session, batch_ids, vectors)
-                        await session.flush()
+                    await session.flush()
                     logger.info(f"Embedded {len(child_chunks)} children for PDF: {pdf_id}")
                 else:
                     logger.warning(f"No children to embed for PDF: {pdf_id}")

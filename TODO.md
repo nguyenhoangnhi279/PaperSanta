@@ -1,11 +1,11 @@
 # TODO — PaperSanta
 
-## ✅ Done (Phase 0 + 1)
+## ✅ Done
 
 - [x] Auto-trigger extraction on upload
 - [x] Fix infinite loop chunk_pdf
 - [x] Validate extracted_text / chunks / model before processing
-- [x] session.commit() trong process_pdf + delete
+- [x] session.commit() trong process_pdf + delete + chat
 - [x] Cascade delete chunks → embeddings
 - [x] Status badge + polling + toast + retry
 - [x] Fix MissingGreenlet list_sessions
@@ -17,86 +17,58 @@
 - [x] Paragraph-aware + parent-child chunking
 - [x] Embed chỉ children, search child → trả parent context
 - [x] POST /{id}/summarize (TL;DR via DeepSeek)
+- [x] Summarize button trong Reader
+- [x] Prompt quality: system prompt PaperSanta persona + temperature 0.7 + max_tokens 4096
+- [x] Garbage filter cho chunk (trên 50 chars, bỏ page num/url/symbols)
 
 ---
 
-## 🔴 Problem 1 — Query Understanding
+## 🔴 Sprint tới — Multi-turn + Query Reformulation
 
-Chưa có xử lý ý định câu hỏi trước khi search.
+### 1. Multi-turn context (Context Amnesia)
+- [ ] Lấy N turns gần nhất từ `chat_session.messages`
+- [ ] Nhét history vào prompt trước context chunks
+- [ ] Config: `RAG_HISTORY_TURNS: int = 3`
 
-- [ ] Intent classification: "so sánh" → multi-pdf retrieve, "giải thích" → top-k, "tóm tắt" → summarize endpoint
-- [ ] Query expansion: synonym expansion cho câu hỏi ngắn / mơ hồ
-- [ ] Coreference resolution: "nó" → resolve về paper/chunk đang nói đến
+### 2. Query Reformulation (Naive RAG)
+- [ ] Trước khi embed + search, gọi LLM reformulate câu hỏi:
+      "Lịch sử: {history} → Câu hỏi mới: {query} → Câu hỏi độc lập"
+- [ ] Dùng câu đã reformulate để embed + search
+- [ ] Vẫn dùng câu gốc + history trong prompt cho LLM generate
 
-**Impact:** Medium — cần cho UX tốt hơn nhưng không block core RAG
-
----
-
-## 🔴 Problem 2 — Chunk Quality
-
-Paragraph-aware đã giải quyết 1 phần (cắt đúng paragraph, filter garbage). Còn thiếu:
-
-- [ ] Chunk quality scoring: mỗi chunk tự đánh giá "có useful không" dựa trên entropy, độ dài, nội dung
-- [ ] Bỏ chunk toàn số/ký tự đặc biệt / references (đã có garbage filter sơ bộ)
-- [ ] Table/math extraction (PyMuPDF thay pypdf)
-
-**Impact:** Medium — đã cải thiện nhiều so với sliding window cũ
+### 3. Sliding window
+- [ ] Dùng `history_char_count` đã có
+- [ ] Pop messages cũ khi vượt 6000 chars
+- [ ] Giữ ít nhất 2 turns gần nhất
 
 ---
 
-## 🟡 Problem 3 — Answer Faithfulness
+## 🟡 Về sau
 
-Kiểm tra câu trả lời có bịa không.
+### Chunk Quality
+- [ ] PyMuPDF thay pypdf (bbox, paragraph structure, table detection)
+- [ ] Chunk quality scoring
 
-- [ ] Confidence score tổng hợp từ top-k similarity scores
-- [ ] Nếu tất cả scores < threshold → "Không đủ thông tin" thay vì hardcode string
-- [ ] Verify step: sau khi LLM sinh, check từng claim có trong context không (faithfulness eval nhẹ)
+### PDF Ingestion
+- [ ] OCR fallback (Tesseract/PaddleOCR) cho scanned PDF
+- [ ] Password detection → FAILED sớm
+- [ ] Encoding check (CID font)
 
-**Impact:** High — ảnh hưởng trực tiếp đến độ tin cậy
+### Citation Linking
+- [ ] Đổi iframe → PDF.js
+- [ ] Lưu bbox vào chunk
+- [ ] Click badge → scroll + highlight
 
----
+### Frontend
+- [ ] Fix load chat cũ (format mismatch)
+- [ ] Smart Reader layout (chat trái, PDF phải)
 
-## 🟡 Problem 4 — Multi-turn Context Coherence
+### Answer Faithfulness
+- [ ] Confidence score từ top-k scores
+- [ ] Verify claim sau khi LLM sinh
 
-Hội thoại dài bị mất context.
-
-- [ ] Sliding window trên messages (giữ ~4000 chars gần nhất, drop cũ)
-- [ ] Conversation summarization: compress messages cũ → 1-2 câu summary
-- [ ] Entity tracking: giữ list "đang nói về paper nào, chunk nào" qua các turn
-
-**Impact:** Medium — ảnh hưởng chat dài > 5 turns
-
----
-
-## 🟠 Problem 5 — PDF Ingestion Failure
-
-PDF xấu không được xử lý đúng.
-
-- [ ] Scanned PDF detection (số trang extract được ít hơn số trang thực tế)
-- [ ] OCR fallback (Tesseract / PaddleOCR) cho scanned PDF
-- [ ] PDF password protection detection → FAILED sớm
-- [ ] PDF encoding check (CID font → garbage text)
-
-**Impact:** Low-Medium — scanned PDF ít gặp trong research papers
+### Research Gap Detection
+- [ ] Multi-paper retrieval
+- [ ] Structured output (gaps, themes, conflicts)
 
 ---
-
-## 🔵 Problem 6 — Research Gap Detection
-
-USP của PaperSanta nhưng implementation chưa chín.
-
-- [ ] Redesign prompt: structured output (gaps[], themes[], conflicts[])
-- [ ] Multi-paper retrieval: lấy parent chunks từ nhiều paper song song
-- [ ] Citation mapping: gap nào đến từ paper nào
-- [ ] Frontend UI: so sánh side-by-side
-
-**Impact:** Low — feature riêng, không block core
-
----
-
-## Legend
-
-- 🔴 **Phase 2a** — Cần làm sớm
-- 🟡 **Phase 2b** — Quan trọng
-- 🟠 **Phase 3** — Có thể làm sau
-- 🔵 **Phase 4** — Feature mở rộng

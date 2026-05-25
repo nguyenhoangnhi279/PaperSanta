@@ -209,7 +209,6 @@ class EmbeddingService:
             embedding_dimension=embedding_dimension,
         )
         session.add(embedding)
-        await session.flush()
         logger.debug(f"Created embedding for chunk {chunk_id}")
         return embedding
 
@@ -232,7 +231,6 @@ class EmbeddingService:
             )
             embeddings.append(embedding)
             session.add(embedding)
-        await session.flush()
         logger.info(f"Created {len(embeddings)} embeddings")
         return embeddings
 
