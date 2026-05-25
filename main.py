@@ -14,7 +14,6 @@ from pathlib import Path
 from app.core.config import settings
 from app.core.database import init_db
 from app.api.pdf_router import router as pdf_router
-from app.api.embedding_router import router as embedding_router
 from app.api.rag_router import router as rag_router
 from app.api.analyze_router import router as analyze_router
 from app.api.search_router import router as search_router
@@ -57,7 +56,6 @@ app.add_middleware(
 
 # Routes
 app.include_router(pdf_router)
-app.include_router(embedding_router)
 app.include_router(rag_router)
 app.include_router(analyze_router)
 app.include_router(search_router)

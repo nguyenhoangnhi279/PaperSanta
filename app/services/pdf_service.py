@@ -4,6 +4,7 @@ import shutil
 import logging
 from pathlib import Path
 from io import BytesIO
+from datetime import datetime
 
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 from app.core.database import AsyncSessionLocal
 from app.services.embedding_service import EmbeddingService
 from app.core.embedding_provider import EmbeddingProvider
+from app.core.deepseek_provider import DeepSeekProvider
 import httpx
 import asyncio
 
@@ -156,8 +158,10 @@ class PDFService:
         except Exception as e:
             logger.warning(f"Could not delete file from Supabase Storage: {e}")
 
+        # Xoá chunks + embeddings (cascade ORM + DB tự xoá)
         await db.delete(doc)
         await db.flush()
+        await db.commit()
 
         return doc
 
@@ -165,6 +169,75 @@ class PDFService:
     async def get_file_url(doc_id: uuid.UUID, db: AsyncSession, user_id: str) -> str:
         doc = await PDFService.get_by_id(doc_id, db, user_id)
         return doc.file_path
+
+    @staticmethod
+    async def summarize(
+        doc_id: uuid.UUID,
+        db: AsyncSession,
+        user_id: str,
+    ) -> dict:
+        """Generate TL;DR summary from parent chunks using DeepSeek."""
+        from app.models.pdf_document import PDFDocument
+        from app.models.embedding import PDFChunk
+
+        doc = await PDFService.get_by_id(doc_id, db, user_id)
+
+        # Return cached summary if exists
+        if doc.summary:
+            return {
+                "summary": doc.summary,
+                "generated_at": doc.summary_generated_at,
+                "cached": True,
+            }
+
+        # Get all parent chunks ordered
+        result = await db.execute(
+            select(PDFChunk)
+            .where(PDFChunk.pdf_id == doc_id, PDFChunk.chunk_type == "parent")
+            .order_by(PDFChunk.chunk_index)
+        )
+        parents = result.scalars().all()
+        if not parents:
+            raise HTTPException(400, "Chưa có parent chunks. Vui lòng đợi indexing hoàn tất.")
+
+        # Build prompt with parent texts
+        text_parts = [f"[Section {p.chunk_index}] {p.chunk_text}" for p in parents]
+        full_text = "\n\n".join(text_parts)
+
+        system_prompt = (
+            "Bạn là trợ lý nghiên cứu AI chuyên phân tích paper. "
+            "Trả lời bằng tiếng Việt.\n\n"
+            "Cấu trúc tóm tắt:\n"
+            "## Vấn đề nghiên cứu\nÝ chính, motivation, gap mà paper giải quyết\n\n"
+            "## Phương pháp\nCách tiếp cận chính, điểm mới so với prior work\n\n"
+            "## Kết quả chính\nCác findings quan trọng, con số/metrics nếu có\n\n"
+            "## Kết luận / Đóng góp\nTL;DR 2-3 câu: paper này đã làm gì, tại sao quan trọng"
+        )
+        user_prompt = f"Dưới đây là nội dung paper:\n\n{full_text}\n\nHãy tóm tắt chi tiết theo cấu trúc trên:"
+
+        answer, prompt_tokens, completion_tokens = await asyncio.to_thread(
+            lambda: DeepSeekProvider.generate(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=settings.RAG_TEMPERATURE,
+                max_tokens=settings.RAG_MAX_TOKENS,
+            )
+        )
+
+        # Cache summary
+        now = datetime.utcnow()
+        doc.summary = answer
+        doc.summary_generated_at = now
+        await db.flush()
+        # commit will be handled by get_db
+
+        logger.info(f"Generated summary for PDF: {doc_id} ({prompt_tokens + completion_tokens} tokens)")
+
+        return {
+            "summary": answer,
+            "generated_at": now,
+            "cached": False,
+        }
 
     @staticmethod
     async def process_pdf(pdf_id: uuid.UUID) -> None:
@@ -206,6 +279,7 @@ class PDFService:
                     doc.status = ProcessingStatus.FAILED
                     doc.error_message = f"Download failed: {e}"
                     await session.flush()
+                    await session.commit()
                     logger.exception("Failed to download PDF for processing")
                     return
 
@@ -228,7 +302,16 @@ class PDFService:
                     doc.status = ProcessingStatus.FAILED
                     doc.error_message = f"Extraction failed: {e}"
                     await session.flush()
+                    await session.commit()
                     logger.exception("Failed to extract PDF text")
+                    return
+
+                if not doc.extracted_text or not doc.extracted_text.strip():
+                    doc.status = ProcessingStatus.FAILED
+                    doc.error_message = "Không thể trích xuất văn bản từ PDF (có thể là scanned PDF)"
+                    await session.flush()
+                    await session.commit()
+                    logger.warning(f"No text extracted from PDF: {pdf_id}")
                     return
 
                 # Remove any existing chunks (idempotency)
@@ -238,26 +321,61 @@ class PDFService:
                 except Exception:
                     logger.exception("Failed to delete existing chunks; continuing")
 
-                # Chunk the full document text
-                full_text = "\n".join(pages_text)
-                chunks = await EmbeddingService.chunk_pdf(session, pdf_id, full_text)
+                # Chunk per-page: mỗi page chunk riêng, gắn page_number
+                chunks = []
+                chunk_offset = 0
+                for page_num, page_text in enumerate(pages_text, start=1):
+                    if not page_text.strip():
+                        continue
+                    page_chunks = await EmbeddingService.chunk_pdf(
+                        session, pdf_id, page_text,
+                        page_number=page_num,
+                        chunk_index_offset=chunk_offset,
+                    )
+                    chunks.extend(page_chunks)
+                    chunk_offset += len(page_chunks)
                 await session.flush()
 
-                # Prepare embeddings in batches
-                chunk_texts = [c.chunk_text for c in chunks]
-                chunk_ids = [c.id for c in chunks]
-                batch_size = 32
-                for i in range(0, len(chunk_texts), batch_size):
-                    batch_texts = chunk_texts[i : i + batch_size]
-                    batch_ids = chunk_ids[i : i + batch_size]
-                    # Offload heavy embedding work to thread to avoid blocking event loop
-                    vectors = await asyncio.to_thread(EmbeddingProvider.embed_texts, batch_texts)
-                    await EmbeddingService.batch_create_embeddings(session, batch_ids, vectors)
+                if not chunks:
+                    doc.status = ProcessingStatus.FAILED
+                    doc.error_message = "Không thể tạo chunks từ văn bản"
                     await session.flush()
+                    await session.commit()
+                    logger.warning(f"No chunks created for PDF: {pdf_id}")
+                    return
+
+                # Validate embedding model before starting
+                try:
+                    await asyncio.to_thread(EmbeddingProvider.get_model)
+                    logger.info(f"Embedding model ready for PDF: {pdf_id}")
+                except Exception as e:
+                    doc.status = ProcessingStatus.FAILED
+                    doc.error_message = f"Không thể tải embedding model: {e}"
+                    await session.flush()
+                    await session.commit()
+                    logger.exception("Failed to load embedding model")
+                    return
+
+                # Embed only children chunks (parents dùng cho context/summarize)
+                child_chunks = [c for c in chunks if c.chunk_type == "child"]
+                if child_chunks:
+                    chunk_texts = [c.chunk_text for c in child_chunks]
+                    chunk_ids = [c.id for c in child_chunks]
+                    batch_size = 32
+                    for i in range(0, len(chunk_texts), batch_size):
+                        batch_texts = chunk_texts[i : i + batch_size]
+                        batch_ids = chunk_ids[i : i + batch_size]
+                        vectors = await asyncio.to_thread(EmbeddingProvider.embed_texts, batch_texts)
+                        await EmbeddingService.batch_create_embeddings(session, batch_ids, vectors)
+                        await session.flush()
+                    logger.info(f"Embedded {len(child_chunks)} children for PDF: {pdf_id}")
+                else:
+                    logger.warning(f"No children to embed for PDF: {pdf_id}")
 
                 # Mark as indexed (done)
                 doc.status = ProcessingStatus.INDEXED
                 await session.flush()
+                await session.commit()
                 logger.info(f"Completed indexing PDF: {pdf_id}")
 
             except Exception as e:
@@ -267,5 +385,6 @@ class PDFService:
                         doc.status = ProcessingStatus.FAILED
                         doc.error_message = str(e)
                         await session.flush()
+                        await session.commit()
                 except Exception:
                     logger.exception("Failed to mark document as failed")

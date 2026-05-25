@@ -62,6 +62,13 @@ UploadResponse = PDFUploadResponse
 PDFListResponse = PDFDocumentListResponse
 
 
+# ── Summarize Response ────────────────────────────────────────────────────────
+class SummarizeResponse(BaseModel):
+    summary: str
+    generated_at: datetime
+    cached: bool = False
+
+
 # ── Delete Response ───────────────────────────────────────────────────────────
 class DeleteResponse(BaseModel):
     """Response sau khi xóa PDF thành công"""

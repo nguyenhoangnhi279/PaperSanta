@@ -76,5 +76,5 @@ async def drop_db():
 
 from app.models.pdf_document import PDFDocument  # noqa: E402, F401
 from app.models.embedding import PDFChunk, PDFEmbedding  # noqa: E402, F401
-from app.models.chat import ChatSession, ChatMessage, SessionPDF, MessageCitation  # noqa: E402, F401
+from app.models.chat import ChatSession  # noqa: E402, F401
 from app.models.analysis import MultiAnalysis, AnalysisDocument  # noqa: E402, F401
