@@ -1,20 +1,33 @@
 import { useState } from 'react';
-import { Search, ExternalLink, BookOpen } from 'lucide-react';
+import { Search, ExternalLink, BookOpen, Loader2 } from 'lucide-react';
+import { searchPapers } from '../api/search';
+import { useAuth } from '../context/AuthContext';
+import type { SearchResult } from '../types';
 
 export default function Discovery() {
+  const { session } = useAuth();
+  const token = session?.access_token;
+
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[] | null>(null);
+  const [results, setResults] = useState<SearchResult[] | null>(null);
+  const [total, setTotal] = useState(0);
   const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSearch = async () => {
     if (!query.trim()) return;
     setSearching(true);
-    // TODO: integrate with Semantic Scholar / arxiv API
-    // For now, show placeholder
-    setTimeout(() => {
+    setError(null);
+    try {
+      const res = await searchPapers(query.trim(), token);
+      setResults(res.papers);
+      setTotal(res.total);
+    } catch (e: any) {
+      setError(e.message || 'Search failed');
       setResults([]);
+    } finally {
       setSearching(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -23,7 +36,7 @@ export default function Discovery() {
         <header className="space-y-2">
           <h2 className="text-2xl font-bold tracking-tight">Search Papers</h2>
           <p className="text-gray-400 text-sm">
-            Discover academic papers from around the web.
+            Discover academic papers from around the web via Semantic Scholar.
           </p>
         </header>
 
@@ -47,19 +60,70 @@ export default function Discovery() {
           </button>
         </div>
 
+        {/* Error */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4">
+            {error}
+          </div>
+        )}
+
+        {/* Searching */}
+        {searching && (
+          <div className="flex items-center justify-center gap-2 py-12 text-gray-400">
+            <Loader2 size={20} className="animate-spin" />
+            <span className="text-sm">Searching...</span>
+          </div>
+        )}
+
         {/* Results */}
-        {results && results.length === 0 && (
+        {!searching && results && results.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs text-gray-400">{total} result{total !== 1 ? 's' : ''} for "{query}"</p>
+            {results.map((paper) => (
+              <PaperCard key={paper.s2_id} paper={paper} />
+            ))}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!searching && results && results.length === 0 && !error && (
           <div className="text-center py-20 space-y-4">
             <BookOpen size={48} className="mx-auto text-gray-200" />
             <p className="text-gray-400 text-sm">
-              Search results will appear here.
-            </p>
-            <p className="text-xs text-gray-300">
-              Semantic Scholar integration coming soon.
+              {query ? 'No results found. Try a different query.' : 'Search results will appear here.'}
             </p>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function PaperCard({ paper }: { paper: SearchResult }) {
+  const link = paper.open_access_pdf || `https://www.semanticscholar.org/paper/${paper.s2_id}`;
+  return (
+    <div className="border border-gray-100 rounded-xl p-5 space-y-2 hover:border-gray-200 transition-colors">
+      <div className="flex items-start justify-between gap-4">
+        <h3 className="font-semibold text-sm leading-snug text-gray-900">
+          <a href={link} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 transition-colors">
+            {paper.title}
+          </a>
+        </h3>
+        <a href={link} target="_blank" rel="noopener noreferrer" className="shrink-0 text-gray-300 hover:text-blue-500 transition-colors">
+          <ExternalLink size={14} />
+        </a>
+      </div>
+      {paper.authors.length > 0 && (
+        <p className="text-xs text-gray-500">{paper.authors.join(', ')}</p>
+      )}
+      <div className="flex items-center gap-3 text-xs text-gray-400">
+        {paper.year && <span>{paper.year}</span>}
+        {paper.venue && <span className="italic">{paper.venue}</span>}
+        <span className="font-medium text-gray-500">{paper.citation_count} citations</span>
+      </div>
+      {paper.abstract && (
+        <p className="text-xs text-gray-400 line-clamp-2">{paper.abstract}</p>
+      )}
     </div>
   );
 }

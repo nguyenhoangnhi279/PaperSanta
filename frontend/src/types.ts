@@ -45,3 +45,20 @@ export interface User {
 
 export type SortOption = 'newest' | 'oldest' | 'name';
 export type ActiveView = 'dashboard' | 'reader' | 'comparison' | 'discovery';
+
+export interface SearchResult {
+  s2_id: string;
+  title: string;
+  abstract?: string | null;
+  year?: number | null;
+  authors: string[];
+  venue?: string | null;
+  citation_count: number;
+  open_access_pdf?: string | null;
+}
+
+export interface SearchResponse {
+  total: number;
+  query: string;
+  papers: SearchResult[];
+}
