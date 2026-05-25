@@ -7,7 +7,7 @@ from datetime import datetime
 from sqlalchemy import String, Integer, DateTime, Text, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, ARRAY
 import enum
 
 from app.core.database import Base
