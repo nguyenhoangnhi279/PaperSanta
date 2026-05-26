@@ -105,26 +105,34 @@ class RAGService:
         # ── 2. Build context ────────────────────────────────────────────────
         context_parts = []
         citation_list = []
+        
         for i, r in enumerate(retrieved):
             chunk: PDFChunk = r["chunk"]
             context_text = r.get("context_text", chunk.chunk_text)
+            
             context_parts.append(
-                f"[Chunk {i + 1}] (PDF: {r['pdf_name']}, Độ liên quan: {r['score']})\n"
+                f"[Nguồn {i + 1}] (File: {r['pdf_name']})\n"
                 f"{context_text}\n"
             )
+            
             citation_list.append({
-                "chunk_id": chunk.id,
-                "chunk_text": chunk.chunk_text[:200],
+                "source_id": i + 1,
+                "chunk_id": str(chunk.id),
+                "chunk_text": chunk.chunk_text[:200], 
                 "score": r["score"],
-                "pdf_id": r["pdf_id"],
+                "pdf_id": str(r["pdf_id"]),
                 "pdf_name": r["pdf_name"],
                 "page_number": chunk.page_number,
             })
 
         context = "\n---\n".join(context_parts)
+        
         user_prompt = (
-            f"Ngữ cảnh trích dẫn:\n{context}\n\n"
-            f"Câu hỏi: {query_text}"
+            f"Dưới đây là các tài liệu tham khảo (Nguồn):\n{context}\n\n"
+            f"Câu hỏi: {query_text}\n\n"
+            f"Yêu cầu bắt buộc: Bạn phải trả lời dựa trên các Nguồn trên. "
+            f"Khi lấy thông tin từ Nguồn nào, trích dẫn bằng số thứ tự trong ngoặc vuông ở cuối câu, ví dụ: [1]. "
+            f"TUYỆT ĐỐI KHÔNG dùng từ 'Chunk' trong câu trả lời."
         )
 
         # ── 3. Generate ─────────────────────────────────────────────────────

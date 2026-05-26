@@ -79,3 +79,10 @@ export async function getPdfFileUrl(id: string, token?: string | null): Promise<
   });
   return parseResponse(res);
 }
+export async function toggleFavoritePdf(id: string, token: string) {
+  const res = await fetch(`${API_BASE}/${id}/favorite`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+  });
+  return parseResponse<{id: string, is_favorite: boolean, message: string}>(res);
+}

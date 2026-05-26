@@ -32,7 +32,7 @@ class PDFDocumentResponse(PDFDocumentBase):
     extracted_text: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-
+    is_favorite: bool = False
     model_config = ConfigDict(from_attributes=True)
 
 

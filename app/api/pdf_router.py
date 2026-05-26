@@ -1,12 +1,14 @@
 import uuid
 import logging
 from pathlib import Path
-
+from contextlib import asynccontextmanager
 from fastapi import APIRouter, UploadFile, File, Depends, Query, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse, RedirectResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, update
+from sqlalchemy import text
+
 
 from app.core.database import get_db
 from app.core.auth import get_current_user
@@ -25,7 +27,15 @@ from app.models.embedding import PDFChunk, PDFEmbedding
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/pdf", tags=["PDF"])
 
-
+# @router.get("/fix-db-favorite")
+# async def fix_database_schema(db: AsyncSession = Depends(get_db)):
+#     try:
+#         await db.execute(text("ALTER TABLE pdf_documents ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN DEFAULT FALSE NOT NULL;"))
+#         await db.commit()
+#         return {"message": "Tuyệt vời! Đã thêm cột is_favorite vào Database thành công!"}
+#     except Exception as e:
+#         await db.rollback()
+#         return {"error": f"Có lỗi xảy ra: {str(e)}"}
 @router.post("/upload", response_model=UploadResponse, status_code=201)
 async def upload_pdf(
     file: UploadFile = File(..., description="File PDF cần upload"),
@@ -89,16 +99,38 @@ async def serve_pdf(
     else:
         return {"url": url}
 
+@asynccontextmanager
+async def get_background_db():
+    """Tạo một Database Session độc lập dành riêng cho Background Task"""
+    gen = get_db()
+    db = await anext(gen)
+    try:
+        yield db
+    finally:
+        try:
+            await anext(gen)
+        except StopAsyncIteration:
+            pass
+
+async def execute_background_delete(doc_id: uuid.UUID, user_id: str):
+    """Hàm âm thầm dọn dẹp VectorDB và Supabase ở dưới nền"""
+    async with get_background_db() as db:
+        try:
+            await PDFService.delete(doc_id, db, user_id)
+            logger.info(f"Đã xóa ngầm hoàn tất PDF: {doc_id}")
+        except Exception as e:
+            logger.error(f"Lỗi khi xóa ngầm PDF {doc_id}: {e}")
 
 @router.delete("/{doc_id}", response_model=DeleteResponse)
 async def delete_pdf(
     doc_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    doc = await PDFService.delete(doc_id, db, current_user["user_id"])
+    doc = await PDFService.get_by_id(doc_id, db, current_user["user_id"])
+    background_tasks.add_task(execute_background_delete, doc_id, current_user["user_id"])
     return DeleteResponse(message="Đã xóa thành công.", id=doc.id)
-
 
 @router.post("/{doc_id}/summarize", response_model=SummarizeResponse)
 async def summarize_pdf(
@@ -148,3 +180,15 @@ async def index_pdf(
     background_tasks.add_task(PDFService.process_pdf, doc_id)
 
     return {"message": "Đang xử lý", "pdf_id": str(doc_id)}
+@router.patch("/{doc_id}/favorite")
+async def toggle_favorite(
+    doc_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    doc = await PDFService.get_by_id(doc_id, db, current_user["user_id"])
+    
+    doc.is_favorite = not doc.is_favorite
+    await db.commit()
+    
+    return {"id": doc.id, "is_favorite": doc.is_favorite, "message": "Đã cập nhật yêu thích"}

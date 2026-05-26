@@ -9,6 +9,7 @@ import PDFViewer from './PDFViewer';
 import MarkdownRenderer from './MarkdownRenderer';
 import type { PDFDocument, ChatMessage, ChatSession } from '../types';
 
+
 interface ReaderProps {
   paper?: PDFDocument | null;
   allPapers: PDFDocument[];
@@ -33,6 +34,8 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
   const [errorVisible, setErrorVisible] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [targetPage, setTargetPage] = useState<number | null>(null);
+  const [viewerTarget, setViewerTarget] = useState<{ page: number; text?: string } | null>(null);
 
   // Load PDF URL when paper changes
   useEffect(() => {
@@ -109,6 +112,7 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
           ts: new Date().toISOString(),
           tokens: { prompt: result.prompt_tokens, completion: result.completion_tokens },
           citations: result.citations?.map((c: any) => ({
+            source_id: c.source_id,
             chunk_id: c.chunk_id || '',
             chunk_text: c.chunk_text || '',
             score: c.score || 0,
@@ -176,7 +180,11 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
               </button>
             </div>
             <div className="relative flex-1">
-              <PDFViewer url={pdfUrl} />
+              <PDFViewer 
+                url={pdfUrl} 
+                targetPage={viewerTarget?.page} 
+                targetText={viewerTarget?.text} 
+              />
             </div>
           </div>
         ) : (
@@ -336,18 +344,20 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
                   </div>
                   {m.citations && m.citations.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {m.citations.slice(0, 3).map((c, i) => (
-                        <span
+                      {m.citations.map((c: any, i) => (
+                        <button
                           key={i}
                           title={c.chunk_text}
-                          className="text-[9px] bg-gray-50 border border-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full truncate max-w-[180px]"
+                          onClick={() => {
+                            if (c.page_number) {
+                              setViewerTarget({ page: c.page_number, text: c.chunk_text });
+                           }
+                          }}
+                        className="text-[10px] bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-600 px-2 py-1 rounded-full truncate max-w-[180px] transition-colors cursor-pointer flex items-center gap-1 font-medium"
                         >
-                          📄 {c.pdf_name || 'source'} ({c.score.toFixed(2)})
-                        </span>
+                          📄 [{c.source_id || i + 1}] Trang {c.page_number || 1}
+                        </button>
                       ))}
-                      {m.citations.length > 3 && (
-                        <span className="text-[9px] text-gray-400">+{m.citations.length - 3}</span>
-                      )}
                     </div>
                   )}
                 </div>

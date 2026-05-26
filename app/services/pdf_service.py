@@ -346,12 +346,18 @@ class PDFService:
                 logger.info(f"Completed indexing PDF: {pdf_id}")
 
             except Exception as e:
-                logger.exception("Unexpected error in PDF processing pipeline")
+                await session.rollback()
+                logger.exception(f"Unexpected error in PDF processing pipeline: {e}")
+                
                 try:
-                    if 'doc' in locals() and doc is not None:
-                        doc.status = ProcessingStatus.FAILED
-                        doc.error_message = str(e)
-                        await session.flush()
+                    result = await session.execute(select(PDFDocument).where(PDFDocument.id == pdf_id))
+                    clean_doc = result.scalar_one_or_none()
+                    
+                    if clean_doc:
+                        clean_doc.status = ProcessingStatus.FAILED
+                        clean_doc.error_message = str(e)
                         await session.commit()
-                except Exception:
-                    logger.exception("Failed to mark document as failed")
+                        logger.info(f"Successfully marked PDF {pdf_id} as FAILED.")
+                except Exception as inner_e:
+                    logger.exception(f"Failed to mark document as failed: {inner_e}")
+                    await session.rollback()
