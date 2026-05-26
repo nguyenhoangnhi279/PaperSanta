@@ -9,6 +9,7 @@ from uuid import UUID
 from datetime import datetime, timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.config import settings
 from app.core.embedding_provider import EmbeddingProvider
@@ -169,8 +170,9 @@ class RAGService:
 
         # Merge pdf_ids
         for pid in pdf_ids:
-            if pid not in chat_session.pdf_ids:
-                chat_session.pdf_ids.append(pid)
+            str_pid = str(pid)
+            if str_pid not in chat_session.pdf_ids:
+                chat_session.pdf_ids.append(str_pid)
 
         # Save user message to JSONB
         user_msg = {
@@ -194,10 +196,12 @@ class RAGService:
         chat_session.history_char_count = sum(
             len(m.get("content", "")) for m in chat_session.messages
         )
+        flag_modified(chat_session, "messages")
+        flag_modified(chat_session, "pdf_ids")
 
-        await db.flush()
+        await db.flush() 
         logger.info(f"Saved session={chat_session.id}, messages={len(chat_session.messages)}")
-
+        
         return {
             "answer": answer,
             "session_id": chat_session.id,
