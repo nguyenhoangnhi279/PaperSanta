@@ -4,7 +4,7 @@ pdf_document.py — ORM model cho bảng pdf_documents
 
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Integer, DateTime, Text, Enum as SAEnum
+from sqlalchemy import String, Integer, DateTime, Text, Boolean, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
@@ -40,10 +40,11 @@ class PDFDocument(Base):
     file_size: Mapped[int]     = mapped_column(Integer, nullable=False)        # bytes
     file_path: Mapped[str]     = mapped_column(String(512), nullable=False)    # local path
     mime_type: Mapped[str]     = mapped_column(String(100), default="application/pdf")
-
+    
     # ── Metadata ──────────────────────────────────────────────────────────────
     title: Mapped[str | None]    = mapped_column(String(500), nullable=True)
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)   # raw text (phase 2)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

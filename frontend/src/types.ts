@@ -9,6 +9,7 @@ export interface PDFDocument {
   extracted_text?: string;
   created_at: string;
   updated_at: string;
+  is_favorite?: boolean;
 }
 
 export interface Citation {

@@ -43,13 +43,6 @@ export async function searchPapers(
 export async function searchRelatedPapers(
   pdfId: string,
   token?: string | null,
-): Promise<RelatedPapersResponse> {
-  const res = await fetch(`${API_BASE}/related/${pdfId}`, {
-    headers: authHeaders(token),
-  });
-export async function searchRelatedPapers(
-  pdfId: string,
-  token?: string | null,
   opts?: {
     limit?: number;
     yearFrom?: number | null;

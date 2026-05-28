@@ -5,7 +5,7 @@ paper_search_service.py — Search papers via Semantic Scholar API
 import logging
 import asyncio
 from typing import List, Dict, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_

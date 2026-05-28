@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, Search, ArrowUpDown, Trash2, Star, Clock, CheckCircle2, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
+import { Upload, FileText, Search, ArrowUpDown, Trash2, Star, Clock, CheckCircle2, AlertCircle, Loader2, RotateCcw, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
-import { uploadPdfFile, deletePdfById, getPdfStatus, indexPdfFile } from '../api/pdf';
+import { uploadPdfFile, deletePdfById, getPdfStatus, indexPdfFile,toggleFavoritePdf } from '../api/pdf';
 import type { PDFDocument, SortOption } from '../types';
 
 interface DashboardProps {
@@ -101,7 +101,24 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
     accept: { 'application/pdf': ['.pdf'] },
     multiple: false,
   });
-
+  const handleToggleFavorite = async (e: React.MouseEvent, paper: PDFDocument) => {
+    e.stopPropagation(); // Chặn sự kiện bấm vào dòng (mở file)
+    if (!token) return;
+    
+    try {
+      await toggleFavoritePdf(paper.id, token);
+      
+      // Gọi hàm này để báo Component cha fetch lại danh sách mới
+      onPaperAdded(); 
+      
+      setToast({ 
+        type: 'success', 
+        message: paper.is_favorite ? 'Đã bỏ yêu thích' : 'Đã thêm vào yêu thích' 
+      });
+    } catch (err: any) {
+      setToast({ type: 'error', message: 'Lỗi cập nhật yêu thích' });
+    }
+  };
   const handleDelete = async () => {
     if (!paperToDelete) return;
     setIsDeleting(true);
@@ -168,12 +185,10 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
           <input {...getInputProps()} />
           <div className="w-16 h-16 rounded-2xl bg-white shadow-xl shadow-blue-100 flex items-center justify-center text-blue-600">
             {isUploading ? (
-              <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
-                <Upload size={32} />
-              </motion.div>
-            ) : (
+              <Loader2 size={32} className="animate-spin" />
+              ) : (
               <Upload size={32} />
-            )}
+          )}
           </div>
           <div className="text-center">
             <p className="text-lg font-bold text-gray-700">
@@ -275,6 +290,16 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
                       <td className="py-4 px-6 text-right w-20">
                         <div className="flex items-center justify-end gap-2">
                           <button
+                            onClick={(e) => handleToggleFavorite(e, paper)}
+                            className="p-1.5 text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 rounded-md transition-colors"
+                            title={paper.is_favorite ? "Bỏ yêu thích" : "Yêu thích"}
+                          >
+                            <Star 
+                              size={14} 
+                              className={paper.is_favorite ? "fill-yellow-400 text-yellow-400" : ""} 
+                            />
+                          </button>
+                          <button
                             onClick={(e) => confirmDelete(e, paper)}
                             className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
                           >
@@ -368,7 +393,7 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
                   </button>
                 )}
                 <button onClick={() => setToast(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
-                  <Upload size={16} className="rotate-45" />
+                  <X size={16} />
                 </button>
               </div>
             </motion.div>
