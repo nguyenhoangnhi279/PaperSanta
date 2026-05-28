@@ -183,7 +183,6 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
               <PDFViewer 
                 url={pdfUrl} 
                 targetPage={viewerTarget?.page} 
-                targetText={viewerTarget?.text} 
               />
             </div>
           </div>

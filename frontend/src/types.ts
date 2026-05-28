@@ -45,7 +45,32 @@ export interface User {
 }
 
 export type SortOption = 'newest' | 'oldest' | 'name';
-export type ActiveView = 'dashboard' | 'reader' | 'comparison' | 'discovery';
+export type ActiveView = 'dashboard' | 'reader' | 'comparison' | 'analyzer' | 'discovery';
+
+export type AnalysisType =
+  | 'benchmark_matrix'
+  | 'hyperparameter_compare'
+  | 'resource_compare'
+  | 'methodology_mapping'
+  | 'eval_conflicts'
+  | 'paradigm_evolution'
+  | 'dataset_bias_gap'
+  | 'domain_gap'
+  | 'performance_gap'
+  | 'cross_domain_idea';
+
+export interface AnalysisResultType {
+  id: string;
+  analysis_type: AnalysisType;
+  result_json: any;
+  pdf_names: string[];
+  created_at: string;
+}
+
+export interface AnalysisHistoryType {
+  analyses: AnalysisResultType[];
+  total: number;
+}
 
 export interface SearchResult {
   s2_id: string;

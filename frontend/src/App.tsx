@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Reader from './components/Reader';
 import Comparison from './components/Comparison';
+import Analyzer from './components/Analyzer';
 import Discovery from './components/Discovery';
 import { fetchPdfs } from './api/pdf';
 import type { PDFDocument, ActiveView } from './types';
@@ -133,6 +134,18 @@ function AppContent() {
                 allPapers={papers}
                 onBack={() => { setSelectedPaper(null); setActiveTab('dashboard'); }}
               />
+            </motion.div>
+          )}
+
+          {activeTab === 'analyzer' && (
+            <motion.div
+              key="analyzer"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="h-full overflow-y-auto"
+            >
+              <Analyzer papers={papers} />
             </motion.div>
           )}
 

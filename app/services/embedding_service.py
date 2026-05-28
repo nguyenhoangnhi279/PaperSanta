@@ -116,6 +116,7 @@ class EmbeddingService:
         - Children: dùng cho embedding + similarity search
         - Parents: dùng cho LLM context / summarize
         """
+        text = text.replace("\x00", "")
         paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
         paragraphs = [p for p in paragraphs if not _is_garbage(p)]
         if not paragraphs:

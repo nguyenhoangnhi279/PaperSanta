@@ -6,6 +6,7 @@ import logging
 import time
 import asyncio
 from uuid import UUID
+from collections import defaultdict
 from datetime import datetime, timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -103,28 +104,34 @@ class RAGService:
                 "completion_tokens": 0,
             }
 
-        # ── 2. Build context ────────────────────────────────────────────────
+        # ── 2. Build context — group chunks by paper ─────────────────────────
+        paper_groups: dict[str, list[dict]] = defaultdict(list)
+        for r in retrieved:
+            paper_groups[str(r["pdf_id"])].append(r)
+
         context_parts = []
         citation_list = []
-        
-        for i, r in enumerate(retrieved):
-            chunk: PDFChunk = r["chunk"]
-            context_text = r.get("context_text", chunk.chunk_text)
-            
-            context_parts.append(
-                f"[Nguồn {i + 1}] (File: {r['pdf_name']})\n"
-                f"{context_text}\n"
-            )
-            
-            citation_list.append({
-                "source_id": i + 1,
-                "chunk_id": str(chunk.id),
-                "chunk_text": chunk.chunk_text[:200], 
-                "score": r["score"],
-                "pdf_id": str(r["pdf_id"]),
-                "pdf_name": r["pdf_name"],
-                "page_number": chunk.page_number,
-            })
+
+        for paper_idx, (pid, paper_chunks) in enumerate(paper_groups.items(), 1):
+            paper_label = paper_chunks[0].get("pdf_name", "Unknown")
+            for chunk_data in paper_chunks:
+                chunk: PDFChunk = chunk_data["chunk"]
+                context_text = chunk_data.get("context_text", chunk.chunk_text)
+
+                context_parts.append(
+                    f"[Paper {paper_idx}: {paper_label}]\n"
+                    f"{context_text}\n"
+                )
+
+                citation_list.append({
+                    "source_id": paper_idx,
+                    "chunk_id": str(chunk.id),
+                    "chunk_text": chunk.chunk_text[:200],
+                    "score": chunk_data["score"],
+                    "pdf_id": pid,
+                    "pdf_name": paper_label,
+                    "page_number": chunk.page_number,
+                })
 
         context = "\n---\n".join(context_parts)
         
@@ -132,8 +139,8 @@ class RAGService:
             f"Dưới đây là các tài liệu tham khảo (Nguồn):\n{context}\n\n"
             f"Câu hỏi: {query_text}\n\n"
             f"Yêu cầu bắt buộc: Bạn phải trả lời dựa trên các Nguồn trên. "
-            f"Khi lấy thông tin từ Nguồn nào, trích dẫn bằng số thứ tự trong ngoặc vuông ở cuối câu, ví dụ: [1]. "
-            f"TUYỆT ĐỐI KHÔNG dùng từ 'Chunk' trong câu trả lời."
+            f"Khi lấy thông tin từ Nguồn nào, trích dẫn bằng nhãn Paper trong ngoặc vuông ở cuối câu, ví dụ: [Paper 1]. "
+            f"TUYỆT ĐỐI KHÔNG dùng từ 'Chunk' hay số thứ tự kiểu [1], [2] trong câu trả lời."
         )
 
         # ── 3. Generate ─────────────────────────────────────────────────────

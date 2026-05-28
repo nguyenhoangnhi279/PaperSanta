@@ -22,7 +22,7 @@ interface SidebarProps {
 const menuItems: { id: ActiveView; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Library', icon: LayoutDashboard },
   { id: 'reader', label: 'Chats', icon: MessageSquare },
-  { id: 'comparison', label: 'Analyze', icon: BarChart2 },
+  { id: 'analyzer', label: 'Analyze', icon: BarChart2 },
   { id: 'discovery', label: 'Search papers', icon: Search },
 ];
 

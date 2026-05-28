@@ -25,7 +25,7 @@ engine = create_async_engine(
     connect_args={
         "ssl": "require",            # Supabase bắt buộc SSL
         "timeout": 10,               # Connection timeout 10s
-        "command_timeout": 10,       # Command timeout 10s
+        "command_timeout": 60,       # Command timeout 60s (tránh timeout khi flush extracted_text dài)
         "statement_cache_size": 0,   # Tắt prepared statements cho pgbouncer
         "prepared_statement_cache_size": 0,  # asyncpg compatibility
     },

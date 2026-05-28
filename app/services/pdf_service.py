@@ -255,6 +255,7 @@ class PDFService:
                         raise RuntimeError("Could not download file bytes")
 
                 except Exception as e:
+                    await session.rollback()
                     doc.status = ProcessingStatus.FAILED
                     doc.error_message = f"Download failed: {e}"
                     await session.flush()
@@ -275,9 +276,10 @@ class PDFService:
 
                     doc.page_count = len(pages_text)
                     # keep only a truncated raw text to avoid huge DB fields
-                    doc.extracted_text = "\n".join(pages_text)[: 200_000]
+                    doc.extracted_text = "\n".join(pages_text)[: 200_000].replace("\x00", "")
                     await session.flush()
                 except Exception as e:
+                    await session.rollback()
                     doc.status = ProcessingStatus.FAILED
                     doc.error_message = f"Extraction failed: {e}"
                     await session.flush()
@@ -307,7 +309,7 @@ class PDFService:
                     if not page_text.strip():
                         continue
                     page_chunks = await EmbeddingService.chunk_pdf(
-                        session, pdf_id, page_text,
+                        session, pdf_id, page_text.replace("\x00", ""),
                         page_number=page_num,
                         chunk_index_offset=chunk_offset,
                     )
@@ -348,16 +350,17 @@ class PDFService:
             except Exception as e:
                 await session.rollback()
                 logger.exception(f"Unexpected error in PDF processing pipeline: {e}")
-                
+
                 try:
-                    result = await session.execute(select(PDFDocument).where(PDFDocument.id == pdf_id))
-                    clean_doc = result.scalar_one_or_none()
-                    
-                    if clean_doc:
-                        clean_doc.status = ProcessingStatus.FAILED
-                        clean_doc.error_message = str(e)
-                        await session.commit()
-                        logger.info(f"Successfully marked PDF {pdf_id} as FAILED.")
+                    async with AsyncSessionLocal() as cleanup_session:
+                        result = await cleanup_session.execute(
+                            select(PDFDocument).where(PDFDocument.id == pdf_id)
+                        )
+                        clean_doc = result.scalar_one_or_none()
+                        if clean_doc:
+                            clean_doc.status = ProcessingStatus.FAILED
+                            clean_doc.error_message = str(e)
+                            await cleanup_session.commit()
+                            logger.info(f"Successfully marked PDF {pdf_id} as FAILED.")
                 except Exception as inner_e:
                     logger.exception(f"Failed to mark document as failed: {inner_e}")
-                    await session.rollback()

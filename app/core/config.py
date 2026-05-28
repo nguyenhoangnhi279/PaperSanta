@@ -80,6 +80,10 @@ class Settings(BaseSettings):
     RAG_TEMPERATURE: float = 0.7
     RAG_MAX_TOKENS: int = 4096
 
+    # ── Analyzer ────────────────────────────────────────────────────────────────
+    ANALYZE_MAX_TOKENS: int = 4096
+    ANALYZE_DEFAULT_TOP_K: int = 30
+
     # ── DeepSeek ───────────────────────────────────────────────────────────────
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_API_BASE: str = "https://api.deepseek.com"
