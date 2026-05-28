@@ -19,6 +19,9 @@ export default function Discovery() {
   const [relatedSearching, setRelatedSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [relatedError, setRelatedError] = useState<string | null>(null);
+  const [yearFrom, setYearFrom] = useState<number | ''>('');
+  const [yearTo, setYearTo] = useState<number | ''>('');
+  const [minCitations, setMinCitations] = useState<number | ''>('');
   const [relatedLimit, setRelatedLimit] = useState<number>(10);
   const [relatedYearFrom, setRelatedYearFrom] = useState<number | ''>('');
   const [relatedYearTo, setRelatedYearTo] = useState<number | ''>('');
@@ -46,7 +49,15 @@ export default function Discovery() {
     setSearching(true);
     setError(null);
     try {
-      const res = await searchPapers(query.trim(), token);
+      const res = await searchPapers(
+        query.trim(),
+        token,
+        10,
+        0,
+        yearFrom === '' ? undefined : yearFrom,
+        yearTo === '' ? undefined : yearTo,
+        minCitations === '' ? undefined : minCitations,
+      );
       setResults(res.papers);
       setTotal(res.total);
     } catch (e: any) {
@@ -89,23 +100,53 @@ export default function Discovery() {
         </header>
 
         {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="Search for papers by topic, title, or author..."
-            className="w-full pl-12 pr-4 py-3.5 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-gray-50/50"
-          />
-          <button
-            onClick={handleSearch}
-            disabled={searching || !query.trim()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {searching ? 'Searching...' : 'Search'}
-          </button>
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="Search for papers by topic, title, or author..."
+              className="w-full pl-12 pr-4 py-3.5 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-gray-50/50"
+            />
+            <button
+              onClick={handleSearch}
+              disabled={searching || !query.trim()}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {searching ? 'Searching...' : 'Search'}
+            </button>
+          </div>
+
+          {/* Search Filters */}
+          <div className="rounded-2xl border border-gray-100 bg-gray-50/40 p-4">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Filters (optional)</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="number"
+                placeholder="Year from"
+                value={yearFrom}
+                onChange={(e) => setYearFrom(e.target.value === '' ? '' : Number(e.target.value))}
+                className="w-24 px-2 py-1.5 border border-gray-200 rounded-md bg-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+              <input
+                type="number"
+                placeholder="Year to"
+                value={yearTo}
+                onChange={(e) => setYearTo(e.target.value === '' ? '' : Number(e.target.value))}
+                className="w-24 px-2 py-1.5 border border-gray-200 rounded-md bg-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+              <input
+                type="number"
+                placeholder="Min citations"
+                value={minCitations}
+                onChange={(e) => setMinCitations(e.target.value === '' ? '' : Number(e.target.value))}
+                className="w-28 px-2 py-1.5 border border-gray-200 rounded-md bg-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Related papers */}
