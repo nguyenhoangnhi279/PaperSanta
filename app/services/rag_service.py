@@ -34,7 +34,7 @@ class RAGService:
     ) -> list[dict]:
         logger.info(f"Similarity search: user={user_id}, query='{query_text[:50]}...', pdf_ids={pdf_ids}, top_k={top_k}")
 
-        query_vector = await asyncio.to_thread(EmbeddingProvider.embed_text, query_text)
+        query_vector = await asyncio.to_thread(EmbeddingProvider.embed_query, query_text)
 
         stmt = (
             select(
@@ -214,6 +214,91 @@ class RAGService:
         return {
             "answer": answer,
             "session_id": chat_session.id,
+            "citations": citation_list,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+        }
+
+    @staticmethod
+    async def explain_selection(
+        db: AsyncSession,
+        user_id: str,
+        pdf_id: UUID,
+        selected_text: str,
+        page_number: int | None = None,
+        surrounding_text: str | None = None,
+        top_k: int = 8,
+    ) -> dict:
+        query_text = selected_text
+        if surrounding_text:
+            query_text = f"{selected_text}\n\nContext around selection:\n{surrounding_text[:1200]}"
+
+        retrieved = await RAGService.similarity_search(
+            db,
+            user_id,
+            query_text,
+            pdf_ids=[pdf_id],
+            top_k=max(top_k, 12),
+        )
+        if page_number:
+            retrieved = sorted(
+                retrieved,
+                key=lambda r: (r["chunk"].page_number == page_number, r["score"]),
+                reverse=True,
+            )
+        retrieved = retrieved[:top_k]
+
+        if not retrieved:
+            return {
+                "answer": "Không tìm thấy ngữ cảnh phù hợp trong PDF để giải thích đoạn đã chọn.",
+                "citations": [],
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+            }
+
+        context_parts = []
+        citation_list = []
+        for idx, r in enumerate(retrieved, 1):
+            chunk: PDFChunk = r["chunk"]
+            context_text = r.get("context_text", chunk.chunk_text)
+            context_parts.append(
+                f"[Source {idx}: {r['pdf_name']}, page {chunk.page_number or 'unknown'}]\n"
+                f"{context_text}"
+            )
+            citation_list.append({
+                "chunk_id": str(chunk.id),
+                "chunk_text": chunk.chunk_text[:200],
+                "score": r["score"],
+                "pdf_id": str(r["pdf_id"]),
+                "pdf_name": r["pdf_name"],
+                "page_number": chunk.page_number,
+            })
+
+        system_prompt = (
+            "Bạn là PaperSanta, trợ lý giải thích thuật ngữ trong paper. "
+            "Giải thích ngắn gọn, đúng ngữ cảnh bài báo, và nêu rõ khi thông tin nào là kiến thức nền ngoài paper."
+        )
+        user_prompt = (
+            f"Thuật ngữ/đoạn được chọn: {selected_text}\n\n"
+            f"Ngữ cảnh xung quanh do frontend cung cấp:\n{surrounding_text or '(không có)'}\n\n"
+            f"Các nguồn tìm thấy trong PDF:\n{chr(10).join(context_parts)}\n\n"
+            "Hãy giải thích theo cấu trúc:\n"
+            "1. Ý nghĩa trong ngữ cảnh bài báo\n"
+            "2. Giải thích rộng hơn nếu cần\n"
+            "3. Vì sao nó quan trọng trong đoạn/paper này\n"
+            "Trích dẫn nguồn bằng [Source X] khi dùng thông tin từ PDF."
+        )
+
+        answer, prompt_tokens, completion_tokens = await asyncio.to_thread(
+            lambda: DeepSeekProvider.generate(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=0.3,
+                max_tokens=min(settings.RAG_MAX_TOKENS, 1200),
+            )
+        )
+        return {
+            "answer": answer,
             "citations": citation_list,
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,

@@ -1,16 +1,12 @@
-import os
 import uuid
-import shutil
 import logging
 from pathlib import Path
-from io import BytesIO
 from datetime import datetime
 
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
 from supabase import create_client, Client
-from pypdf import PdfReader
 
 from app.core.config import settings
 from app.models.pdf_document import PDFDocument, ProcessingStatus
@@ -19,8 +15,10 @@ logger = logging.getLogger(__name__)
 
 from app.core.database import AsyncSessionLocal
 from app.services.embedding_service import EmbeddingService
+from app.services.extraction_service import get_pdf_extractor, to_pdf_block
 from app.core.embedding_provider import EmbeddingProvider
 from app.core.deepseek_provider import DeepSeekProvider
+from app.models.pdf_block import PDFBlock
 import httpx
 import asyncio
 
@@ -181,7 +179,7 @@ class PDFService:
             raise RuntimeError("Supabase did not return a signed URL")
         except Exception as e:
             logger.error(f"Failed to create signed URL for PDF {doc_id}: {e}")
-            raise HTTPException(500, "KhĂ´ng thá»ƒ táº¡o liĂªn káº¿t táº£i PDF")
+            raise HTTPException(500, "Không thể tạo liên kết tải PDF")
 
     @staticmethod
     async def summarize(
@@ -303,20 +301,12 @@ class PDFService:
                     logger.exception("Failed to download PDF for processing")
                     return
 
-                # Extract text per page
+                # Extract structured blocks
                 try:
-                    reader = PdfReader(BytesIO(file_bytes))
-                    pages_text = []
-                    for i, page in enumerate(reader.pages, start=1):
-                        try:
-                            text = page.extract_text() or ""
-                        except Exception:
-                            text = ""
-                        pages_text.append(text)
-
-                    doc.page_count = len(pages_text)
-                    # keep only a truncated raw text to avoid huge DB fields
-                    doc.extracted_text = "\n".join(pages_text)[: 200_000].replace("\x00", "")
+                    extractor = get_pdf_extractor()
+                    extraction = await asyncio.to_thread(extractor.extract, file_bytes)
+                    doc.page_count = extraction.page_count
+                    doc.extracted_text = extraction.extracted_text
                     await session.flush()
                 except Exception as e:
                     await session.rollback()
@@ -338,20 +328,29 @@ class PDFService:
                 # Remove any existing chunks (idempotency)
                 try:
                     await EmbeddingService.delete_chunks_by_pdf(session, pdf_id)
+                    await session.execute(delete(PDFBlock).where(PDFBlock.pdf_id == pdf_id))
                     await session.flush()
                 except Exception:
-                    logger.exception("Failed to delete existing chunks; continuing")
+                    logger.exception("Failed to delete existing extraction data; continuing")
 
                 # Chunk per-page: mỗi page chunk riêng, gắn page_number
+                pdf_blocks = [to_pdf_block(pdf_id, block) for block in extraction.blocks]
+                for pdf_block in pdf_blocks:
+                    session.add(pdf_block)
+                await session.flush()
+
                 chunks = []
                 chunk_offset = 0
-                for page_num, page_text in enumerate(pages_text, start=1):
-                    if not page_text.strip():
+                for block in extraction.blocks:
+                    if not block.content_markdown.strip():
                         continue
                     page_chunks = await EmbeddingService.chunk_pdf(
-                        session, pdf_id, page_text.replace("\x00", ""),
-                        page_number=page_num,
+                        session, pdf_id, block.content_markdown,
+                        page_number=block.page_number,
                         chunk_index_offset=chunk_offset,
+                        block_id=block.id,
+                        source_block_type=block.block_type,
+                        section_path=block.section_path,
                     )
                     chunks.extend(page_chunks)
                     chunk_offset += len(page_chunks)
@@ -374,7 +373,7 @@ class PDFService:
                     for i in range(0, len(chunk_texts), batch_size):
                         batch_texts = chunk_texts[i : i + batch_size]
                         batch_ids = chunk_ids[i : i + batch_size]
-                        vectors = await asyncio.to_thread(EmbeddingProvider.embed_texts, batch_texts)
+                        vectors = await asyncio.to_thread(EmbeddingProvider.embed_documents, batch_texts)
                         await EmbeddingService.batch_create_embeddings(session, batch_ids, vectors)
                     await session.flush()
                     logger.info(f"Embedded {len(child_chunks)} children for PDF: {pdf_id}")

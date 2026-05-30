@@ -9,6 +9,8 @@ from uuid import UUID
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
+from app.core.database import import_all_models
 from app.models.embedding import PDFChunk, PDFEmbedding
 
 logger = logging.getLogger(__name__)
@@ -36,7 +38,17 @@ def _is_garbage(text: str) -> bool:
     return False
 
 
-def _to_children(text: str, child_size: int = 150) -> list[str]:
+def _overlap_tail(text: str, overlap_size: int) -> str:
+    if overlap_size <= 0 or len(text) <= overlap_size:
+        return text if overlap_size > 0 else ""
+    tail = text[-overlap_size:]
+    first_space = tail.find(" ")
+    if first_space > 0:
+        tail = tail[first_space + 1:]
+    return tail.strip()
+
+
+def _to_children(text: str, child_size: int = 450, overlap_size: int = 120) -> list[str]:
     sentences = re.split(r'(?<=[.!?])\s+', text)
     sentences = [s.strip() for s in sentences if s.strip()]
     if len(sentences) <= 1:
@@ -47,9 +59,11 @@ def _to_children(text: str, child_size: int = 150) -> list[str]:
     current_len = 0
     for sent in sentences:
         if current_len + len(sent) > child_size and current:
-            children.append(" ".join(current).strip())
-            current = []
-            current_len = 0
+            chunk = " ".join(current).strip()
+            children.append(chunk)
+            overlap = _overlap_tail(chunk, overlap_size)
+            current = [overlap] if overlap else []
+            current_len = len(overlap)
         current.append(sent)
         current_len += len(sent)
     if current:
@@ -58,25 +72,87 @@ def _to_children(text: str, child_size: int = 150) -> list[str]:
     return children
 
 
+def _table_children(text: str, child_size: int, section_path: list[str] | None) -> list[str]:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return []
+
+    title_lines = [line for line in lines[:3] if not line.startswith("|")]
+    table_lines = [line for line in lines if line.startswith("|")]
+    if len(table_lines) < 3:
+        return [_with_section_context(text, section_path)]
+
+    header = table_lines[:2]
+    rows = table_lines[2:]
+    children: list[str] = []
+    current_rows: list[str] = []
+    current_len = len("\n".join(title_lines + header))
+
+    for row in rows:
+        if current_rows and current_len + len(row) > child_size:
+            child = "\n".join(title_lines + header + current_rows).strip()
+            children.append(_with_section_context(child, section_path))
+            current_rows = []
+            current_len = len("\n".join(title_lines + header))
+        current_rows.append(row)
+        current_len += len(row)
+
+    if current_rows:
+        child = "\n".join(title_lines + header + current_rows).strip()
+        children.append(_with_section_context(child, section_path))
+    return children
+
+
+def _section_header(section_path: list[str] | None) -> str:
+    if not section_path:
+        return ""
+    clean_path = [part.strip() for part in section_path if part and part.strip()]
+    if not clean_path:
+        return ""
+    return " > ".join(clean_path)
+
+
+def _with_section_context(text: str, section_path: list[str] | None) -> str:
+    header = _section_header(section_path)
+    if not header:
+        return text
+    if text.lstrip().startswith("[Section:"):
+        return text
+    return f"[Section: {header}]\n{text}"
+
+
 def _create_parent_child(
     pdf_id: UUID,
     text: str,
     child_size: int,
+    child_overlap: int,
     page_number: int | None,
     chunk_index: int,
+    section_path: list[str] | None = None,
+    source_block_type: str | None = None,
 ) -> tuple[PDFChunk, list[PDFChunk]]:
     parent_id = uuid.uuid4()
+    parent_text = _with_section_context(text, section_path)
     parent = PDFChunk(
         id=parent_id,
         pdf_id=pdf_id,
         chunk_index=chunk_index,
-        chunk_text=text,
+        chunk_text=parent_text,
         page_number=page_number,
         chunk_type="parent",
-        token_count=len(text.split()),
+        token_count=len(parent_text.split()),
     )
 
-    children_texts = _to_children(text, child_size=child_size)
+    if source_block_type in {"table", "equation"}:
+        if source_block_type == "table":
+            children_texts = _table_children(text, child_size, section_path)
+        else:
+            children_texts = [_with_section_context(text, section_path)]
+    else:
+        children_texts = [
+            _with_section_context(child_text, section_path)
+            for child_text in _to_children(text, child_size=child_size, overlap_size=child_overlap)
+        ]
     children = []
     for i, child_text in enumerate(children_texts):
         child = PDFChunk(
@@ -94,6 +170,18 @@ def _create_parent_child(
     return parent, children
 
 
+def _attach_chunk_metadata(
+    chunks: list[PDFChunk],
+    block_id: UUID | None,
+    source_block_type: str | None,
+    section_path: list[str] | None,
+) -> None:
+    for chunk in chunks:
+        chunk.block_id = block_id
+        chunk.source_block_type = source_block_type
+        chunk.section_path = section_path
+
+
 class EmbeddingService:
 
     @staticmethod
@@ -101,10 +189,14 @@ class EmbeddingService:
         session: AsyncSession,
         pdf_id: UUID,
         text: str,
-        parent_size: int = 800,
-        child_size: int = 150,
+        parent_size: int | None = None,
+        child_size: int | None = None,
+        child_overlap: int | None = None,
         page_number: int | None = None,
         chunk_index_offset: int = 0,
+        block_id: UUID | None = None,
+        source_block_type: str | None = None,
+        section_path: list[str] | None = None,
     ) -> list[PDFChunk]:
         """
         Paragraph-aware chunking với parent-child hierarchy.
@@ -116,7 +208,35 @@ class EmbeddingService:
         - Children: dùng cho embedding + similarity search
         - Parents: dùng cho LLM context / summarize
         """
+        parent_size = parent_size or settings.CHUNK_PARENT_SIZE_CHARS
+        child_size = child_size or settings.CHUNK_CHILD_SIZE_CHARS
+        child_overlap = child_overlap if child_overlap is not None else settings.CHUNK_CHILD_OVERLAP_CHARS
+        import_all_models()
         text = text.replace("\x00", "")
+
+        if source_block_type in {"table", "equation"}:
+            parent_chunk, child_chunks = _create_parent_child(
+                pdf_id,
+                text.strip(),
+                child_size,
+                child_overlap,
+                page_number,
+                chunk_index_offset,
+                section_path,
+                source_block_type,
+            )
+            chunks = [parent_chunk, *child_chunks]
+            _attach_chunk_metadata(chunks, block_id, source_block_type, section_path)
+            for chunk in chunks:
+                session.add(chunk)
+            await session.flush()
+            logger.info(
+                f"Created {len(chunks)} chunks for PDF {pdf_id} (page={page_number}, block={source_block_type}): "
+                f"{sum(1 for c in chunks if c.chunk_type == 'parent')} parents, "
+                f"{sum(1 for c in chunks if c.chunk_type == 'child')} children"
+            )
+            return chunks
+
         paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
         paragraphs = [p for p in paragraphs if not _is_garbage(p)]
         if not paragraphs:
@@ -135,8 +255,9 @@ class EmbeddingService:
             if not parent_text:
                 return
             parent_chunk, child_chunks = _create_parent_child(
-                pdf_id, parent_text, child_size, page_number, chunk_index,
+                pdf_id, parent_text, child_size, child_overlap, page_number, chunk_index, section_path, source_block_type,
             )
+            _attach_chunk_metadata([parent_chunk, *child_chunks], block_id, source_block_type, section_path)
             chunks.append(parent_chunk)
             chunks.extend(child_chunks)
             chunk_index += 1 + len(child_chunks)
@@ -156,8 +277,9 @@ class EmbeddingService:
                     if sent_len + len(sent) > parent_size and sent_buffer:
                         parent_text = " ".join(sent_buffer).strip()
                         parent_chunk, child_chunks = _create_parent_child(
-                            pdf_id, parent_text, child_size, page_number, chunk_index,
+                            pdf_id, parent_text, child_size, child_overlap, page_number, chunk_index, section_path, source_block_type,
                         )
+                        _attach_chunk_metadata([parent_chunk, *child_chunks], block_id, source_block_type, section_path)
                         chunks.append(parent_chunk)
                         chunks.extend(child_chunks)
                         chunk_index += 1 + len(child_chunks)
@@ -168,8 +290,9 @@ class EmbeddingService:
                 if sent_buffer:
                     parent_text = " ".join(sent_buffer).strip()
                     parent_chunk, child_chunks = _create_parent_child(
-                        pdf_id, parent_text, child_size, page_number, chunk_index,
+                        pdf_id, parent_text, child_size, child_overlap, page_number, chunk_index, section_path, source_block_type,
                     )
+                    _attach_chunk_metadata([parent_chunk, *child_chunks], block_id, source_block_type, section_path)
                     chunks.append(parent_chunk)
                     chunks.extend(child_chunks)
                     chunk_index += 1 + len(child_chunks)
@@ -200,13 +323,13 @@ class EmbeddingService:
         session: AsyncSession,
         chunk_id: UUID,
         vector: list[float],
-        embedding_model: str = "all-MiniLM-L6-v2",
+        embedding_model: str | None = None,
     ) -> PDFEmbedding:
         embedding_dimension = len(vector)
         embedding = PDFEmbedding(
             chunk_id=chunk_id,
             vector=vector,
-            embedding_model=embedding_model,
+            embedding_model=embedding_model or settings.EMBEDDING_MODEL_NAME,
             embedding_dimension=embedding_dimension,
         )
         session.add(embedding)
@@ -218,7 +341,7 @@ class EmbeddingService:
         session: AsyncSession,
         chunk_ids: list[UUID],
         vectors: list[list[float]],
-        embedding_model: str = "all-MiniLM-L6-v2",
+        embedding_model: str | None = None,
     ) -> list[PDFEmbedding]:
         if len(chunk_ids) != len(vectors):
             raise ValueError(f"Mismatch: {len(chunk_ids)} chunks vs {len(vectors)} vectors")
@@ -227,7 +350,7 @@ class EmbeddingService:
             embedding = PDFEmbedding(
                 chunk_id=chunk_id,
                 vector=vector,
-                embedding_model=embedding_model,
+                embedding_model=embedding_model or settings.EMBEDDING_MODEL_NAME,
                 embedding_dimension=len(vector),
             )
             embeddings.append(embedding)
