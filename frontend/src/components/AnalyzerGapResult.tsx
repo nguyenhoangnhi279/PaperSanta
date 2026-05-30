@@ -6,7 +6,7 @@ export default function AnalyzerGapResult({ result }: AnalyzerGapResultProps) {
   const title = result?.title || '';
 
   if (!result || Object.keys(result).length === 0) {
-    return <div className="text-gray-400 italic text-xs p-4">No gap analysis data available.</div>;
+    return <div className="text-[var(--color-ink-secondary)] italic text-xs p-4">No gap analysis data available.</div>;
   }
 
   const gaps = Array.isArray(result.gaps_found) ? result.gaps_found : [];
@@ -16,13 +16,13 @@ export default function AnalyzerGapResult({ result }: AnalyzerGapResultProps) {
       case 'high': return 'bg-red-100 text-red-800 border-red-200';
       case 'medium': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-[var(--color-surface-hover)] text-[var(--color-ink)] border-gray-200';
     }
   };
 
   return (
     <div className="space-y-5">
-      {title && <h4 className="text-sm font-bold text-gray-800">{title}</h4>}
+      {title && <h4 className="text-sm font-bold text-[var(--color-ink)]">{title}</h4>}
 
       {gaps.length > 0 && (
         <div>
@@ -56,7 +56,7 @@ export default function AnalyzerGapResult({ result }: AnalyzerGapResultProps) {
           </h5>
           <ul className="space-y-1.5">
             {result.opportunities.map((o: string, i: number) => (
-              <li key={i} className="text-xs text-gray-700 flex items-start gap-2">
+              <li key={i} className="text-xs text-[var(--color-ink)] flex items-start gap-2">
                 <span className="text-green-500 font-bold mt-0.5">→</span>
                 {o}
               </li>
@@ -73,7 +73,7 @@ export default function AnalyzerGapResult({ result }: AnalyzerGapResultProps) {
           </h5>
           <ul className="space-y-1.5">
             {result.recommendations.map((r: string, i: number) => (
-              <li key={i} className="text-xs text-gray-700 flex items-start gap-2">
+              <li key={i} className="text-xs text-[var(--color-ink)] flex items-start gap-2">
                 <span className="text-blue-500 font-bold mt-0.5">💡</span>
                 {r}
               </li>

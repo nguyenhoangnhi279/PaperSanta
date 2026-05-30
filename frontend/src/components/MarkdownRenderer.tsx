@@ -17,13 +17,13 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
           p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
           ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
           ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
-          li: ({ children }) => <li className="text-gray-700">{children}</li>,
-          strong: ({ children }) => <strong className="font-bold text-gray-900">{children}</strong>,
+          li: ({ children }) => <li className="text-[var(--color-ink)]">{children}</li>,
+          strong: ({ children }) => <strong className="font-bold text-[var(--color-ink)]">{children}</strong>,
           code: ({ children }) => (
-            <code className="bg-gray-100 px-1.5 py-0.5 rounded text-[11px] font-mono">{children}</code>
+            <code className="bg-[var(--color-surface-hover)] px-1.5 py-0.5 rounded text-[11px] font-mono">{children}</code>
           ),
           pre: ({ children }) => (
-            <pre className="bg-gray-50 p-3 rounded-lg overflow-x-auto text-[11px] font-mono mb-2">{children}</pre>
+            <pre className="bg-[var(--color-surface-hover)] p-3 rounded-lg overflow-x-auto text-[11px] font-mono mb-2">{children}</pre>
           ),
         }}
       >

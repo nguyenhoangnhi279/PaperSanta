@@ -142,22 +142,22 @@ export default function Analyzer({ papers }: AnalyzerProps) {
   const getTypeName = (type: string) => allTypes.find((t) => t.id === type)?.label || type;
 
   return (
-    <div className="flex-1 bg-white overflow-y-auto">
+    <div className="flex-1 bg-[var(--color-surface)] overflow-y-auto">
       <div className="max-w-5xl mx-auto p-8 space-y-6">
         {/* Header */}
         <header className="flex items-center justify-between">
           <div className="space-y-1">
             <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <span className="p-1.5 bg-purple-50 text-purple-600 rounded-lg">
+              <span className="p-1.5 bg-[var(--color-accent-subtle)] text-[var(--color-accent)] rounded-lg">
                 <Brain size={20} />
               </span>
               Analyzer
             </h2>
-            <p className="text-gray-400 text-sm">Multi-paper AI analysis</p>
+            <p className="text-[var(--color-ink-secondary)] text-sm">Multi-paper AI analysis</p>
           </div>
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 border border-gray-200 px-3 py-1.5 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 text-xs font-bold text-[var(--color-ink-secondary)] hover:text-[var(--color-ink)] border border-[var(--color-line)] px-3 py-1.5 rounded-lg transition-colors"
           >
             <History size={14} />
             History
@@ -175,21 +175,21 @@ export default function Analyzer({ papers }: AnalyzerProps) {
                 className={cn(
                   'flex-1 p-4 rounded-xl border text-left transition-all',
                   mode === m.id
-                    ? 'bg-purple-50 border-purple-200 shadow-sm'
-                    : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm'
+                    ? 'bg-[var(--color-accent-subtle)] border-[var(--color-accent-subtle)] shadow-sm'
+                    : 'bg-[var(--color-surface)] border-[var(--color-line-subtle)] hover:border-[var(--color-line)] hover:shadow-sm'
                 )}
               >
                 <div className={cn(
                   'w-8 h-8 rounded-lg flex items-center justify-center mb-2',
-                  mode === m.id ? 'bg-purple-100 text-purple-600' : 'bg-gray-50 text-gray-400'
+                  mode === m.id ? 'bg-[var(--color-accent-subtle)] text-[var(--color-accent)]' : 'bg-[var(--color-surface-hover)] text-[var(--color-ink-secondary)]'
                 )}>
                   <Icon size={16} />
                 </div>
                 <p className={cn(
                   'text-xs font-bold',
-                  mode === m.id ? 'text-purple-800' : 'text-gray-700'
+                  mode === m.id ? 'text-[var(--color-accent)]' : 'text-[var(--color-ink)]'
                 )}>{m.label}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">{m.description}</p>
+                <p className="text-[10px] text-[var(--color-ink-secondary)] mt-0.5">{m.description}</p>
               </button>
             );
           })}
@@ -197,7 +197,7 @@ export default function Analyzer({ papers }: AnalyzerProps) {
 
         {/* Sub-mode cards (analysis types) */}
         <div>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+          <p className="text-[10px] font-bold text-[var(--color-ink-secondary)] uppercase tracking-wider mb-2">
             Select analysis type
           </p>
           <div className="grid grid-cols-3 gap-2">
@@ -211,21 +211,21 @@ export default function Analyzer({ papers }: AnalyzerProps) {
                   className={cn(
                     'p-3 rounded-xl border text-left transition-all',
                     isSelected
-                      ? 'bg-blue-50 border-blue-200 shadow-sm'
-                      : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm'
+                      ? 'bg-[var(--color-accent-subtle)] border-[var(--color-accent-subtle)] shadow-sm'
+                      : 'bg-[var(--color-surface)] border-[var(--color-line-subtle)] hover:border-[var(--color-line)] hover:shadow-sm'
                   )}
                 >
                   <div className={cn(
                     'w-7 h-7 rounded-lg flex items-center justify-center mb-1.5',
-                    isSelected ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-400'
+                    isSelected ? 'bg-[var(--color-accent-subtle)] text-[var(--color-accent)]' : 'bg-[var(--color-surface-hover)] text-[var(--color-ink-secondary)]'
                   )}>
                     <Icon size={14} />
                   </div>
                   <p className={cn(
                     'text-xs font-bold leading-tight',
-                    isSelected ? 'text-blue-800' : 'text-gray-700'
+                    isSelected ? 'text-[var(--color-accent)]' : 'text-[var(--color-ink)]'
                   )}>{t.label}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{t.description}</p>
+                  <p className="text-[10px] text-[var(--color-ink-secondary)] mt-0.5 leading-tight">{t.description}</p>
                 </button>
               );
             })}
@@ -235,12 +235,12 @@ export default function Analyzer({ papers }: AnalyzerProps) {
         {/* PDF Selection */}
         <div>
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+            <p className="text-[10px] font-bold text-[var(--color-ink-secondary)] uppercase tracking-wider">
               Select PDFs ({selectedPdfIds.length} selected)
             </p>
             <button
               onClick={() => setShowPdfSelector(!showPdfSelector)}
-              className="text-[10px] text-blue-600 hover:text-blue-700 font-bold"
+              className="text-[10px] text-[var(--color-accent)] hover:text-[var(--color-accent)] font-bold"
             >
               {showPdfSelector ? 'Collapse' : selectedPdfIds.length < 2 ? 'Select papers...' : 'Change'}
             </button>
@@ -249,31 +249,31 @@ export default function Analyzer({ papers }: AnalyzerProps) {
           {selectedDocs.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-1.5 mb-2">
               {selectedDocs.map((d) => (
-                <span key={d.id} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 rounded-full border border-blue-100">
+                <span key={d.id} className="inline-flex items-center gap-1 bg-[var(--color-accent-subtle)] text-[var(--color-accent)] text-[10px] px-2 py-0.5 rounded-full border border-[var(--color-accent-subtle)]">
                   {d.original_name}
-                  <button onClick={() => togglePdf(d.id)} className="hover:text-red-500 font-bold">&times;</button>
+                  <button onClick={() => togglePdf(d.id)} className="hover:text-[var(--color-danger)] font-bold">&times;</button>
                 </span>
               ))}
             </div>
           )}
 
           {showPdfSelector && (
-            <div className="mt-1 border border-gray-100 rounded-xl overflow-hidden max-h-48 overflow-y-auto">
+            <div className="mt-1 border border-[var(--color-line-subtle)] rounded-xl overflow-hidden max-h-48 overflow-y-auto">
               {papers.length === 0 ? (
-                <div className="p-4 text-center text-xs text-gray-400 italic">No PDFs uploaded yet</div>
+                <div className="p-4 text-center text-xs text-[var(--color-ink-secondary)] italic">No PDFs uploaded yet</div>
               ) : (
                 papers.map((doc) => (
                   <div
                     key={doc.id}
                     onClick={() => togglePdf(doc.id)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
+                    className="flex items-center gap-3 px-4 py-2.5 text-xs hover:bg-[var(--color-surface-hover)] cursor-pointer border-b border-[var(--color-line-subtle)] last:border-0 transition-colors"
                   >
                     <div
                       className={cn(
                         'w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
                         selectedPdfIds.includes(doc.id)
-                          ? 'bg-blue-600 border-blue-600 text-white'
-                          : 'border-gray-300'
+                          ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-white'
+                          : 'border-[var(--color-line)]'
                       )}
                     >
                       {selectedPdfIds.includes(doc.id) && <Check size={12} />}
@@ -282,7 +282,7 @@ export default function Analyzer({ papers }: AnalyzerProps) {
                     <span className={cn(
                       'text-[10px] px-1.5 py-0.5 rounded-full',
                       doc.status === 'indexed' ? 'bg-green-100 text-green-700' :
-                      doc.status === 'failed' ? 'bg-red-100 text-red-700' :
+                      doc.status === 'failed' ? 'bg-[var(--color-danger-subtle)] text-[var(--color-danger)]' :
                       'bg-amber-100 text-amber-700'
                     )}>
                       {doc.status}
@@ -299,7 +299,7 @@ export default function Analyzer({ papers }: AnalyzerProps) {
 
         {/* Custom Prompt */}
         <div>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+          <p className="text-[10px] font-bold text-[var(--color-ink-secondary)] uppercase tracking-wider mb-1.5">
             Custom prompt (optional)
           </p>
           <textarea
@@ -307,7 +307,7 @@ export default function Analyzer({ papers }: AnalyzerProps) {
             onChange={(e) => setCustomPrompt(e.target.value)}
             placeholder="Override the default prompt with your own question, e.g.: 'Focus only on the training datasets and compare their sizes...'"
             rows={2}
-            className="w-full border border-gray-200 rounded-xl p-3 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-300 outline-none resize-none placeholder:text-gray-300 bg-gray-50/50"
+            className="w-full border border-[var(--color-line)] rounded-xl p-3 text-xs focus:ring-2 focus:ring-[var(--color-accent-subtle)] focus:border-[var(--color-accent)] outline-none resize-none placeholder:text-[var(--color-ink-secondary)] bg-[var(--color-surface-hover)]/50"
           />
         </div>
 
@@ -318,8 +318,8 @@ export default function Analyzer({ papers }: AnalyzerProps) {
           className={cn(
             'w-full py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2',
             loading || !selectedType || selectedPdfIds.length < 2
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'bg-purple-600 text-white hover:bg-purple-700 shadow-md shadow-purple-200'
+              ? 'bg-[var(--color-surface-hover)] text-[var(--color-ink-secondary)] cursor-not-allowed'
+              : 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent)]/80 shadow-md shadow-[var(--color-accent-subtle)]'
           )}
         >
           {loading ? (
@@ -337,37 +337,37 @@ export default function Analyzer({ papers }: AnalyzerProps) {
 
         {/* Error */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-            <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
+          <div className="bg-[var(--color-danger-subtle)] border-[var(--color-danger-subtle)] rounded-xl p-4 flex items-start gap-3">
+            <AlertCircle size={16} className="text-[var(--color-danger)] mt-0.5 shrink-0" />
             <div>
-              <p className="text-xs font-bold text-red-800">Analysis failed</p>
-              <p className="text-xs text-red-600 mt-0.5">{error}</p>
+              <p className="text-xs font-bold text-[var(--color-danger)]">Analysis failed</p>
+              <p className="text-xs text-[var(--color-danger)] mt-0.5">{error}</p>
             </div>
           </div>
         )}
 
         {/* Result */}
         {result && (
-          <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-            <div className="bg-gray-50 px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+          <div className="border border-[var(--color-line)] rounded-2xl overflow-hidden shadow-sm">
+            <div className="bg-[var(--color-surface-hover)] px-5 py-3 border-b border-[var(--color-line-subtle)] flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Sparkles size={14} className="text-purple-500" />
-                <span className="text-xs font-bold text-gray-700">
+                <Sparkles size={14} className="text-[var(--color-accent)]" />
+                <span className="text-xs font-bold text-[var(--color-ink)]">
                   {getTypeName(result.analysis_type)}
                 </span>
-                <span className="text-[10px] text-gray-400">
+                <span className="text-[10px] text-[var(--color-ink-secondary)]">
                   on {result.pdf_names?.join(', ')}
                 </span>
               </div>
-              <span className="text-[10px] text-gray-400">
+              <span className="text-[10px] text-[var(--color-ink-secondary)]">
                 {result.created_at ? new Date(result.created_at).toLocaleString() : ''}
               </span>
             </div>
             <div className="p-5">
               {result.result_json?.error ? (
-                <div className="text-xs text-gray-500 italic">{result.result_json.error}</div>
+                <div className="text-xs text-[var(--color-ink-secondary)] italic">{result.result_json.error}</div>
               ) : result.result_json?.raw_output ? (
-                <div className="text-xs text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 p-3 rounded-lg">
+                <div className="text-xs text-[var(--color-ink)] whitespace-pre-wrap font-mono bg-[var(--color-surface-hover)] p-3 rounded-lg">
                   {result.result_json.raw_output}
                 </div>
               ) : (
@@ -383,40 +383,40 @@ export default function Analyzer({ papers }: AnalyzerProps) {
 
         {/* History sidebar (dropdown) */}
         {showHistory && (
-          <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-            <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Analysis History</span>
-              <button onClick={() => setShowHistory(false)} className="text-[10px] text-gray-400 hover:text-gray-600">&times;</button>
+          <div className="border border-[var(--color-line-subtle)] rounded-2xl overflow-hidden shadow-sm">
+            <div className="px-5 py-3 bg-[var(--color-surface-hover)] border-b border-[var(--color-line-subtle)] flex items-center justify-between">
+              <span className="text-[10px] font-bold text-[var(--color-ink-secondary)] uppercase tracking-wider">Analysis History</span>
+              <button onClick={() => setShowHistory(false)} className="text-[10px] text-[var(--color-ink-secondary)] hover:text-[var(--color-ink)]">&times;</button>
             </div>
             {history.length === 0 ? (
-              <div className="p-8 text-center text-xs text-gray-400 italic">No previous analyses</div>
+              <div className="p-8 text-center text-xs text-[var(--color-ink-secondary)] italic">No previous analyses</div>
             ) : (
               <div className="max-h-60 overflow-y-auto">
                 {history.map((h) => (
                   <div
                     key={h.id}
                     className={cn(
-                      'flex items-center justify-between px-5 py-3 text-xs hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors',
-                      result?.id === h.id && 'bg-blue-50'
+                      'flex items-center justify-between px-5 py-3 text-xs hover:bg-[var(--color-surface-hover)] cursor-pointer border-b border-[var(--color-line-subtle)] last:border-0 transition-colors',
+                      result?.id === h.id && 'bg-[var(--color-accent-subtle)]'
                     )}
                     onClick={() => loadExistingAnalysis(h.id)}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-6 h-6 rounded-full bg-purple-50 text-purple-500 flex items-center justify-center shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-[var(--color-accent-subtle)] text-[var(--color-accent)] flex items-center justify-center shrink-0">
                         <Brain size={12} />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-gray-700 truncate">{getTypeName(h.analysis_type)}</p>
-                        <p className="text-[10px] text-gray-400 truncate">{h.pdf_names?.join(', ') || 'No papers'}</p>
+                        <p className="font-bold text-[var(--color-ink)] truncate">{getTypeName(h.analysis_type)}</p>
+                        <p className="text-[10px] text-[var(--color-ink-secondary)] truncate">{h.pdf_names?.join(', ') || 'No papers'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] text-gray-400">
+                      <span className="text-[10px] text-[var(--color-ink-secondary)]">
                         {h.created_at ? new Date(h.created_at).toLocaleDateString() : ''}
                       </span>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(h.id); }}
-                        className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                        className="p-1 text-[var(--color-ink-secondary)] hover:text-[var(--color-danger)] transition-colors"
                       >
                         <Trash2 size={12} />
                       </button>

@@ -12,4 +12,6 @@ pyjwt
 pgvector
 deep-translator
 requests
+httpx
+openai
 

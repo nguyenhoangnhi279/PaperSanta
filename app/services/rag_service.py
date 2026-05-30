@@ -27,11 +27,12 @@ class RAGService:
     @staticmethod
     async def similarity_search(
         session: AsyncSession,
+        user_id: str,
         query_text: str,
         pdf_ids: list[UUID] | None = None,
         top_k: int = 5,
     ) -> list[dict]:
-        logger.info(f"Similarity search: query='{query_text[:50]}...', pdf_ids={pdf_ids}, top_k={top_k}")
+        logger.info(f"Similarity search: user={user_id}, query='{query_text[:50]}...', pdf_ids={pdf_ids}, top_k={top_k}")
 
         query_vector = await asyncio.to_thread(EmbeddingProvider.embed_text, query_text)
 
@@ -45,6 +46,7 @@ class RAGService:
             .join(PDFEmbedding, PDFEmbedding.chunk_id == PDFChunk.id)
             .join(PDFDocument, PDFDocument.id == PDFChunk.pdf_id)
             .where(PDFChunk.chunk_type == "child")
+            .where(PDFDocument.user_id == user_id)
             .order_by(PDFEmbedding.vector.cosine_distance(query_vector))
             .limit(top_k)
         )
@@ -91,7 +93,7 @@ class RAGService:
         # ── 1. Retrieve ──────────────────────────────────────────────────────
         t0 = time.time()
         retrieved = await RAGService.similarity_search(
-            db, query_text, pdf_ids=pdf_ids, top_k=top_k
+            db, user_id, query_text, pdf_ids=pdf_ids, top_k=top_k
         )
         retrieve_time = time.time() - t0
 

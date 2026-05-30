@@ -163,27 +163,27 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
   };
 
   return (
-    <div className="flex-1 bg-white overflow-y-auto">
+    <div className="flex-1 bg-[var(--color-surface)] overflow-y-auto">
       <div className="max-w-5xl mx-auto p-12 space-y-12">
         {/* Welcome */}
         <header className="text-center space-y-2">
           <h2 className="text-2xl font-bold tracking-tight">
             Welcome back, {user?.displayName?.split(' ')[0] || 'Researcher'}
           </h2>
-          <p className="text-gray-400 text-sm">Which paper shall we research today?</p>
+          <p className="text-[var(--color-ink-secondary)] text-sm">Which paper shall we research today?</p>
         </header>
 
         {/* Upload Zone */}
         <div
           {...getRootProps()}
           className={cn(
-            'border-2 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center gap-6 transition-all cursor-pointer bg-gray-50/50',
-            isDragActive ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200 hover:border-blue-400',
+            'border-2 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center gap-6 transition-all cursor-pointer bg-[var(--color-surface-hover)]/50',
+            isDragActive ? 'border-[var(--color-accent)] bg-[var(--color-accent-subtle)]/30' : 'border-[var(--color-line)] hover:border-[var(--color-accent)]',
             isUploading ? 'opacity-50 pointer-events-none' : ''
           )}
         >
           <input {...getInputProps()} />
-          <div className="w-16 h-16 rounded-2xl bg-white shadow-xl shadow-blue-100 flex items-center justify-center text-blue-600">
+          <div className="w-16 h-16 rounded-2xl bg-[var(--color-surface)] shadow-xl shadow-[var(--color-accent-subtle)] flex items-center justify-center text-[var(--color-accent)]">
             {isUploading ? (
               <Loader2 size={32} className="animate-spin" />
               ) : (
@@ -191,31 +191,31 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
           )}
           </div>
           <div className="text-center">
-            <p className="text-lg font-bold text-gray-700">
+            <p className="text-lg font-bold text-[var(--color-ink)]">
               {isUploading ? 'Processing Paper...' : 'Upload your file'}
             </p>
-            <p className="text-sm text-gray-400">Click to browse or drag and drop your PDFs here</p>
+            <p className="text-sm text-[var(--color-ink-secondary)]">Click to browse or drag and drop your PDFs here</p>
           </div>
         </div>
 
         {/* Library */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+            <h3 className="text-sm font-bold text-[var(--color-ink-secondary)] uppercase tracking-widest flex items-center gap-2">
               Your Uploaded Library
             </h3>
             <div className="flex items-center gap-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink-secondary)]" size={14} />
                 <input
                   type="text"
                   placeholder="Search for files..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-4 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 w-48 bg-white"
+                  className="pl-9 pr-4 py-1.5 border border-[var(--color-line)] rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] w-48 bg-[var(--color-surface)]"
                 />
               </div>
-              <div className="flex items-center gap-2 text-xs font-bold text-gray-500 border border-gray-200 rounded-lg px-2 py-1.5 bg-white">
+              <div className="flex items-center gap-2 text-xs font-bold text-[var(--color-ink-secondary)] border border-[var(--color-line)] rounded-lg px-2 py-1.5 bg-[var(--color-surface)]">
                 <ArrowUpDown size={14} />
                 <span>Sort by</span>
                 <select
@@ -232,9 +232,9 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
           </div>
 
           {/* Paper List */}
-          <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm bg-white">
+          <div className="border border-[var(--color-line-subtle)] rounded-2xl overflow-hidden shadow-sm bg-[var(--color-surface)]">
             {filteredAndSorted.length === 0 ? (
-              <div className="p-20 text-center text-gray-400 italic text-sm">
+              <div className="p-20 text-center text-[var(--color-ink-secondary)] italic text-sm">
                 {isUploading ? 'Uploading...' : 'Your research library is currently empty.'}
               </div>
             ) : (
@@ -244,22 +244,22 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
                     <tr
                       key={paper.id}
                       onClick={() => onSelectPaper(paper)}
-                      className="group border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                      className="group border-b border-[var(--color-line-subtle)] last:border-0 hover:bg-[var(--color-surface-hover)]/50 transition-colors cursor-pointer"
                     >
                       <td className="py-4 pl-6 w-12">
-                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">
+                        <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-subtle)] flex items-center justify-center text-[var(--color-accent)]">
                           <FileText size={16} />
                         </div>
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
-                          <p className="text-sm font-bold text-gray-700 truncate max-w-[320px]">
+                          <p className="text-sm font-bold text-[var(--color-ink)] truncate max-w-[320px]">
                             {paper.original_name}
                           </p>
                           <span className={cn(
                             'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border',
                             paper.status === 'indexed' && 'text-green-700 bg-green-50 border-green-200',
-                            paper.status === 'failed' && 'text-red-700 bg-red-50 border-red-200',
+                            paper.status === 'failed' && 'text-[var(--color-danger)] bg-[var(--color-danger-subtle)] border-[var(--color-danger-subtle)]',
                             (paper.status === 'pending' || paper.status === 'extracted') && 'text-amber-700 bg-amber-50 border-amber-200',
                           )}>
                             {paper.status === 'pending' || paper.status === 'extracted' ? (
@@ -282,7 +282,7 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
                         </div>
                       </td>
                       <td className="py-4 px-4 text-right">
-                        <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+                        <span className="text-[11px] text-[var(--color-ink-secondary)] font-medium flex items-center gap-1">
                           <Clock size={11} />
                           {formatDate(paper.created_at)}
                         </span>
@@ -291,17 +291,17 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={(e) => handleToggleFavorite(e, paper)}
-                            className="p-1.5 text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 rounded-md transition-colors"
+                            className="p-1.5 text-[var(--color-ink-secondary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)] rounded-md transition-colors"
                             title={paper.is_favorite ? "Bỏ yêu thích" : "Yêu thích"}
                           >
                             <Star 
                               size={14} 
-                              className={paper.is_favorite ? "fill-yellow-400 text-yellow-400" : ""} 
+                              className={paper.is_favorite ? "fill-[var(--color-accent)] text-[var(--color-accent)]" : ""} 
                             />
                           </button>
                           <button
                             onClick={(e) => confirmDelete(e, paper)}
-                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                            className="p-1.5 text-[var(--color-ink-secondary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-subtle)] rounded-md transition-colors"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -326,28 +326,28 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
               exit={{ scale: 0.9, opacity: 0 }}
               className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl space-y-6"
             >
-              <div className="flex items-center gap-4 text-red-600">
-                <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+              <div className="flex items-center gap-4 text-[var(--color-danger)]">
+                <div className="w-12 h-12 rounded-full bg-[var(--color-danger-subtle)] flex items-center justify-center">
                   <Trash2 size={24} />
                 </div>
                 <h3 className="text-xl font-bold">Delete Paper?</h3>
               </div>
-              <p className="text-gray-600">
+              <p className="text-[var(--color-ink-secondary)]">
                 Are you sure you want to delete{' '}
-                <span className="font-bold text-gray-900">"{paperToDelete.title}"</span>? This action cannot be undone.
+                <span className="font-bold text-[var(--color-ink)]">"{paperToDelete.title}"</span>? This action cannot be undone.
               </p>
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setPaperToDelete(null)}
                   disabled={isDeleting}
-                  className="flex-1 px-4 py-3 border border-gray-200 rounded-xl font-bold hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-3 border border-[var(--color-line)] rounded-xl font-bold hover:bg-[var(--color-surface-hover)] transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={isDeleting}
-                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-3 bg-[var(--color-danger)] text-white rounded-xl font-bold hover:bg-[var(--color-danger)]/80 transition-colors shadow-lg shadow-[var(--color-danger-subtle)] disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isDeleting ? 'Deleting...' : 'Confirm Delete'}
                 </button>
@@ -364,7 +364,7 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
               exit={{ x: 100, opacity: 0 }}
               className={cn(
                 'p-4 rounded-xl shadow-xl flex items-center gap-3 pr-6',
-                toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-[var(--color-danger)] text-white'
               )}
             >
               <div className={cn(

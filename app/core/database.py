@@ -66,6 +66,7 @@ async def init_db():
     except Exception as e:
         logger.error("Critial Error: Could not connect to Supabase Database!")
         logger.error(f"Reason: {e}")
+        raise
 
 async def drop_db():
     """Dùng khi test: xóa tất cả tables"""

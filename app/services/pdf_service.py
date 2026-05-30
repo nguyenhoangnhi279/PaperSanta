@@ -36,6 +36,27 @@ def get_supabase_client() -> Client:
     return _supabase_client
 
 
+def _signed_url_from_response(response) -> str | None:
+    if isinstance(response, dict):
+        signed_url = (
+            response.get("signedURL")
+            or response.get("signedUrl")
+            or response.get("signed_url")
+        )
+    else:
+        signed_url = (
+            getattr(response, "signed_url", None)
+            or getattr(response, "signedURL", None)
+            or getattr(response, "signedUrl", None)
+        )
+
+    if not signed_url:
+        return None
+    if signed_url.startswith(("http://", "https://")):
+        return signed_url
+    return f"{settings.SUPABASE_URL.rstrip('/')}/storage/v1/{signed_url.lstrip('/')}"
+
+
 class PDFService:
 
     @staticmethod
@@ -69,8 +90,6 @@ class PDFService:
                 )
             )
 
-            public_url = await asyncio.to_thread(lambda: bucket.get_public_url(storage_path))
-
             logger.info(f"Uploaded to Supabase Storage: {storage_path} ({len(content)} bytes)")
 
         except Exception as e:
@@ -81,7 +100,7 @@ class PDFService:
             filename=storage_path,
             original_name=file.filename,
             file_size=len(content),
-            file_path=public_url,
+            file_path=storage_path,
             mime_type=file.content_type or "application/pdf",
             status=ProcessingStatus.PENDING,
             user_id=user_id,
@@ -147,7 +166,22 @@ class PDFService:
     @staticmethod
     async def get_file_url(doc_id: uuid.UUID, db: AsyncSession, user_id: str) -> str:
         doc = await PDFService.get_by_id(doc_id, db, user_id)
-        return doc.file_path
+        try:
+            supabase = get_supabase_client()
+            bucket = supabase.storage.from_(settings.SUPABASE_STORAGE_BUCKET)
+            response = await asyncio.to_thread(
+                lambda: bucket.create_signed_url(
+                    doc.filename,
+                    settings.SUPABASE_SIGNED_URL_EXPIRES_SECONDS,
+                )
+            )
+            signed_url = _signed_url_from_response(response)
+            if signed_url:
+                return signed_url
+            raise RuntimeError("Supabase did not return a signed URL")
+        except Exception as e:
+            logger.error(f"Failed to create signed URL for PDF {doc_id}: {e}")
+            raise HTTPException(500, "KhĂ´ng thá»ƒ táº¡o liĂªn káº¿t táº£i PDF")
 
     @staticmethod
     async def summarize(
@@ -245,7 +279,13 @@ class PDFService:
                         elif hasattr(downloaded, "read"):
                             file_bytes = downloaded.read()
                     except Exception:
-                        public_url = supabase.storage.from_(settings.SUPABASE_STORAGE_BUCKET).get_public_url(doc.filename)
+                        signed_response = supabase.storage.from_(settings.SUPABASE_STORAGE_BUCKET).create_signed_url(
+                            doc.filename,
+                            settings.SUPABASE_SIGNED_URL_EXPIRES_SECONDS,
+                        )
+                        public_url = _signed_url_from_response(signed_response)
+                        if not public_url:
+                            raise RuntimeError("Could not create signed URL for fallback download")
                         async with httpx.AsyncClient() as client:
                             r = await client.get(public_url)
                             r.raise_for_status()

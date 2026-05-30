@@ -165,17 +165,17 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
   const selectedDocs = allPapers.filter((d) => selectedPdfIds.includes(d.id));
 
   return (
-    <div className="flex h-full bg-white overflow-hidden">
+    <div className="flex h-full bg-[var(--color-surface)] overflow-hidden">
       {/* PDF Viewer (left) */}
-      <div className="flex-1 border-r border-gray-200 overflow-hidden flex flex-col bg-[#525659]">
+      <div className="flex-1 border-r border-[var(--color-line)] overflow-hidden flex flex-col bg-[#525659]">
         {pdfUrl ? (
           <div className="relative w-full h-full flex flex-col">
             <div className="bg-[#323639] text-white px-4 py-2 flex justify-between items-center text-sm border-b border-black/20 z-10">
               <span className="font-medium flex items-center gap-2 text-xs">
-                <FileText size={16} className="text-blue-400" />
+                <FileText size={16} className="text-[var(--color-accent)]" />
                 {paper?.original_name || 'PDF Viewer'}
               </span>
-              <button onClick={onBack} className="text-[10px] bg-white/10 hover:bg-white/20 px-3 py-1 rounded transition-colors">
+              <button onClick={onBack} className="text-[10px] bg-[var(--color-surface)]/10 hover:bg-[var(--color-surface)]/20 px-3 py-1 rounded transition-colors">
                 ← Back to Library
               </button>
             </div>
@@ -187,11 +187,11 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400 bg-white">
+          <div className="flex-1 flex items-center justify-center text-[var(--color-ink-secondary)] bg-[var(--color-surface)]">
             <div className="text-center space-y-4">
               <FileText size={48} className="mx-auto opacity-30" />
               <p className="text-sm">No PDF selected. Pick one from the library.</p>
-              <button onClick={onBack} className="text-blue-500 underline text-xs font-bold">
+              <button onClick={onBack} className="text-[var(--color-accent)] underline text-xs font-bold">
                 Go to Library
               </button>
             </div>
@@ -202,9 +202,9 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
       {/* Chat Sidebar (right) */}
       <div className="w-[500px] flex flex-col h-full bg-[#fcfcfd]">
         {/* Header */}
-        <div className="p-4 bg-white border-b border-gray-100 flex items-center justify-between">
+        <div className="p-4 bg-[var(--color-surface)] border-b border-[var(--color-line-subtle)] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+            <div className="p-1.5 bg-[var(--color-accent-subtle)] text-[var(--color-accent)] rounded-lg">
               <MessageSquare size={16} />
             </div>
             <span className="text-sm font-bold">PaperSanta Chat</span>
@@ -220,13 +220,13 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
             </button>
             <button
               onClick={() => setShowSessions(!showSessions)}
-              className="text-[10px] font-bold text-gray-500 hover:text-gray-700 border border-gray-200 px-2 py-1 rounded-lg"
+              className="text-[10px] font-bold text-[var(--color-ink-secondary)] hover:text-[var(--color-ink)] border border-[var(--color-line)] px-2 py-1 rounded-lg"
             >
               History
             </button>
             <button
               onClick={newChat}
-              className="text-[10px] font-bold text-blue-600 hover:text-blue-700 border border-blue-200 px-2 py-1 rounded-lg"
+              className="text-[10px] font-bold text-[var(--color-accent)] hover:text-[var(--color-accent)] border border-[var(--color-accent-subtle)] px-2 py-1 rounded-lg"
             >
               + New
             </button>
@@ -235,24 +235,24 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
 
         {/* Sessions sidebar */}
         {showSessions && (
-          <div className="border-b border-gray-100 bg-gray-50 max-h-48 overflow-y-auto">
-            <div className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Chat History</div>
+          <div className="border-b border-[var(--color-line-subtle)] bg-[var(--color-surface)] max-h-48 overflow-y-auto">
+            <div className="px-4 py-2 text-[10px] font-bold text-[var(--color-ink-secondary)] uppercase tracking-wider">Chat History</div>
             {sessions.length === 0 ? (
-              <div className="px-4 py-3 text-xs text-gray-400 italic">No chat history</div>
+              <div className="px-4 py-3 text-xs text-[var(--color-ink-secondary)] italic">No chat history</div>
             ) : (
               sessions.map((s) => (
                 <div
                   key={s.id}
                   className={cn(
-                    'flex items-center justify-between px-4 py-2 text-xs cursor-pointer hover:bg-gray-100 transition-colors',
-                    sessionId === s.id && 'bg-blue-50'
+                    'flex items-center justify-between px-4 py-2 text-xs cursor-pointer hover:bg-[var(--color-surface-hover)] transition-colors',
+                    sessionId === s.id && 'bg-[var(--color-accent-subtle)]'
                   )}
                   onClick={() => loadExistingSession(s.id)}
                 >
                   <span className="truncate flex-1">{s.title || 'Untitled'}</span>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDeleteSession(s.id); }}
-                    className="p-1 text-gray-300 hover:text-red-500"
+                    className="p-1 text-[var(--color-ink-secondary)] hover:text-[var(--color-danger)]"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -263,10 +263,10 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
         )}
 
         {/* PDF Selector */}
-        <div className="px-4 py-2 border-b border-gray-100">
+        <div className="px-4 py-2 border-b border-[var(--color-line-subtle)]">
           <button
             onClick={() => setShowPdfSelector(!showPdfSelector)}
-            className="flex items-center gap-2 text-xs text-gray-600 hover:text-gray-900"
+            className="flex items-center gap-2 text-xs text-[var(--color-ink)] hover:text-[var(--color-ink)]"
           >
             <LayoutDashboard size={14} />
             <span>
@@ -279,15 +279,15 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
           {showPdfSelector && (
             <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
               {allPapers.length === 0 ? (
-                <div className="text-xs text-gray-400 italic px-2">No PDFs uploaded yet</div>
+                <div className="text-xs text-[var(--color-ink-secondary)] italic px-2">No PDFs uploaded yet</div>
               ) : (
                 allPapers.map((doc) => (
-                  <label key={doc.id} className="flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-gray-50 rounded cursor-pointer">
+                  <label key={doc.id} className="flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-[var(--color-surface)] rounded cursor-pointer">
                     <input
                       type="checkbox"
                       checked={selectedPdfIds.includes(doc.id)}
                       onChange={() => togglePdf(doc.id)}
-                      className="accent-blue-600"
+                      className="accent-[var(--color-accent)]"
                     />
                     <span className="truncate flex-1">{doc.original_name}</span>
                   </label>
@@ -298,13 +298,13 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
           {selectedDocs.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {selectedDocs.slice(0, 3).map((d) => (
-                <span key={d.id} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 rounded-full">
+                <span key={d.id} className="inline-flex items-center gap-1 bg-[var(--color-accent-subtle)] text-[var(--color-accent)] text-[10px] px-2 py-0.5 rounded-full">
                   {d.original_name}
-                  <button onClick={() => togglePdf(d.id)} className="hover:text-red-500">×</button>
+                  <button onClick={() => togglePdf(d.id)} className="hover:text-[var(--color-danger)]">×</button>
                 </span>
               ))}
               {selectedDocs.length > 3 && (
-                <span className="text-[10px] text-gray-400 px-1">+{selectedDocs.length - 3}</span>
+                <span className="text-[10px] text-[var(--color-ink-secondary)] px-1">+{selectedDocs.length - 3}</span>
               )}
             </div>
           )}
@@ -313,7 +313,7 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6 space-y-8" ref={scrollRef}>
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-3">
+            <div className="flex flex-col items-center justify-center h-full text-[var(--color-ink-secondary)] space-y-3">
               <MessageSquare size={32} className="opacity-30" />
               <p className="text-xs italic">Select PDFs above and ask a question.</p>
             </div>
@@ -323,18 +323,18 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
                 <div
                   className={cn(
                     'w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs',
-                    m.role === 'user' ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-600'
+                    m.role === 'user' ? 'bg-[var(--color-surface-hover)] text-[var(--color-ink)]' : 'bg-[var(--color-accent-subtle)] text-[var(--color-accent)]'
                   )}
                 >
                   {m.role === 'user' ? 'U' : 'AI'}
                 </div>
                 <div className="space-y-1 flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-gray-900">
+                    <span className="text-[11px] font-bold text-[var(--color-ink)]">
                       {m.role === 'user' ? 'You' : 'PaperSanta'}
                     </span>
                   </div>
-                  <div className="p-4 rounded-2xl text-xs leading-relaxed border bg-white border-gray-100 text-gray-700 shadow-sm">
+                  <div className="p-4 rounded-2xl text-xs leading-relaxed border bg-[var(--color-surface)] border-[var(--color-line-subtle)] text-[var(--color-ink)] shadow-sm">
                     {m.role === 'user' ? (
                       m.content
                     ) : (
@@ -352,7 +352,7 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
                               setViewerTarget({ page: c.page_number, text: c.chunk_text });
                            }
                           }}
-                        className="text-[10px] bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-600 px-2 py-1 rounded-full truncate max-w-[180px] transition-colors cursor-pointer flex items-center gap-1 font-medium"
+                        className="text-[10px] bg-[var(--color-accent-subtle)] hover:bg-[var(--color-accent-subtle)] border border-[var(--color-accent-subtle)] text-[var(--color-accent)] px-2 py-1 rounded-full truncate max-w-[180px] transition-colors cursor-pointer flex items-center gap-1 font-medium"
                         >
                           📄 [{c.source_id || i + 1}] Trang {c.page_number || 1}
                         </button>
@@ -365,15 +365,15 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
           )}
           {loading && (
             <div className="flex gap-3 animate-pulse">
-              <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-bold">AI</div>
-              <div className="bg-white border border-gray-100 p-3 rounded-xl text-[10px] text-gray-400 italic">Thinking...</div>
+              <div className="w-8 h-8 rounded-full bg-[var(--color-accent-subtle)] text-[var(--color-accent)] flex items-center justify-center text-xs font-bold">AI</div>
+              <div className="bg-[var(--color-surface)] border border-[var(--color-line-subtle)] p-3 rounded-xl text-[10px] text-[var(--color-ink-secondary)] italic">Thinking...</div>
             </div>
           )}
         </div>
 
         {/* Input */}
-        <div className="p-4 bg-white border-t border-gray-100">
-          <div className="flex items-center bg-[#F9FAFB] border border-gray-100 rounded-2xl p-1 focus-within:ring-2 focus-within:ring-blue-100 transition-all shadow-inner">
+        <div className="p-4 bg-[var(--color-surface)] border-t border-[var(--color-line-subtle)]">
+          <div className="flex items-center bg-[#F9FAFB] border border-[var(--color-line-subtle)] rounded-2xl p-1 focus-within:ring-2 focus-within:ring-blue-100 transition-all shadow-inner">
             <input
               type="text"
               value={input}
@@ -385,12 +385,12 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
                   : 'Ask a question about the selected PDFs...'
               }
               disabled={loading || selectedPdfIds.length === 0}
-              className="flex-1 bg-transparent px-4 py-2 text-xs focus:outline-none placeholder:text-gray-400 disabled:opacity-50"
+              className="flex-1 bg-transparent px-4 py-2 text-xs focus:outline-none placeholder:text-[var(--color-ink-secondary)] disabled:opacity-50"
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || loading || selectedPdfIds.length === 0}
-              className="bg-blue-600 text-white p-2 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all shadow-md shadow-blue-100"
+              className="bg-[var(--color-accent)] text-white p-2 rounded-xl hover:bg-[var(--color-accent)]/80 disabled:opacity-50 transition-all shadow-md shadow-[var(--color-accent-subtle)]"
             >
               <Send size={16} />
             </button>

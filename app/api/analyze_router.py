@@ -29,6 +29,18 @@ async def run_analysis(
         raise HTTPException(status_code=400, detail="Need at least 2 PDFs for analysis")
 
     try:
+        pdf_uuids = [UUID(pid) for pid in req.pdf_ids]
+        verify = await db.execute(
+            select(PDFDocument.id).where(
+                PDFDocument.id.in_(pdf_uuids),
+                PDFDocument.user_id == user_id,
+            )
+        )
+        found_ids = {str(pid) for pid in verify.scalars().all()}
+        missing = [pid for pid in req.pdf_ids if pid not in found_ids]
+        if missing:
+            raise HTTPException(status_code=404, detail=f"PDFs not found: {', '.join(missing)}")
+
         result = await AnalyzeService.run_analysis(
             db=db,
             user_id=user_id,
@@ -39,6 +51,8 @@ async def run_analysis(
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Analysis failed: {e}")
         raise HTTPException(status_code=500, detail="Analysis failed")

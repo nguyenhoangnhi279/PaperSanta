@@ -6,7 +6,7 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
   const title = result?.title || '';
 
   if (!result || Object.keys(result).length === 0) {
-    return <div className="text-gray-400 italic text-xs p-4">No synthesis data available.</div>;
+    return <div className="text-[var(--color-ink-secondary)] italic text-xs p-4">No synthesis data available.</div>;
   }
 
   const hasThemes = Array.isArray(result.comparison_themes) && result.comparison_themes.length > 0;
@@ -19,9 +19,9 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
   const renderThemeCard = (theme: any, i: number) => {
     const hasThemeConflicts = Array.isArray(theme.conflicts) && theme.conflicts.length > 0;
     return (
-      <div key={i} className="border border-gray-200 rounded-xl overflow-hidden">
-        <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-100">
-          <p className="text-xs font-bold text-gray-700">{theme.theme_name}</p>
+      <div key={i} className="border border-[var(--color-line)] rounded-xl overflow-hidden">
+        <div className="bg-[var(--color-surface-hover)] px-4 py-2.5 border-b border-[var(--color-line-subtle)]">
+          <p className="text-xs font-bold text-[var(--color-ink)]">{theme.theme_name}</p>
         </div>
         <div className="p-4 space-y-3">
           {theme.consensus ? (
@@ -30,8 +30,8 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
               <p className="text-xs text-green-800">{theme.consensus}</p>
             </div>
           ) : (
-            <div className="bg-gray-50 border border-gray-100 rounded-lg p-3">
-              <p className="text-[10px] text-gray-400 italic">No consensus found</p>
+            <div className="bg-[var(--color-surface-hover)] border border-[var(--color-line-subtle)] rounded-lg p-3">
+              <p className="text-[10px] text-[var(--color-ink-secondary)] italic">No consensus found</p>
             </div>
           )}
 
@@ -61,7 +61,7 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
   };
 
   const renderLineageTrack = (track: any, i: number) => (
-    <div key={i} className="border border-gray-200 rounded-xl overflow-hidden">
+    <div key={i} className="border border-[var(--color-line)] rounded-xl overflow-hidden">
       <div className="bg-blue-50 px-4 py-2.5 border-b border-blue-100 flex items-center gap-2">
         <span className="text-xs font-bold text-blue-800">{track.from_paper || track.from}</span>
         <span className="text-blue-400 text-xs">→</span>
@@ -73,7 +73,7 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
             <p className="text-[10px] font-bold text-green-700 uppercase tracking-wider mb-1.5">Inherited</p>
             <ul className="space-y-1">
               {track.inherited_points.map((pt: string, j: number) => (
-                <li key={j} className="text-xs text-gray-700 flex items-start gap-2">
+                <li key={j} className="text-xs text-[var(--color-ink)] flex items-start gap-2">
                   <span className="text-green-500 mt-0.5 shrink-0">→</span>
                   {pt}
                 </li>
@@ -93,7 +93,7 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
             <p className="text-[10px] font-bold text-blue-700 uppercase tracking-wider mb-1.5">Improvements</p>
             <ul className="space-y-1">
               {track.improvement_points.map((pt: string, j: number) => (
-                <li key={j} className="text-xs text-gray-700 flex items-start gap-2">
+                <li key={j} className="text-xs text-[var(--color-ink)] flex items-start gap-2">
                   <span className="text-blue-500 mt-0.5 shrink-0">+</span>
                   {pt}
                 </li>
@@ -113,7 +113,7 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
 
   return (
     <div className="space-y-5">
-      {title && <h4 className="text-sm font-bold text-gray-800">{title}</h4>}
+      {title && <h4 className="text-sm font-bold text-[var(--color-ink)]">{title}</h4>}
 
       {/* New: comparison_themes structure */}
       {hasThemes && (
@@ -224,16 +224,16 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
       )}
 
       {result.summary && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-          <p className="text-xs font-bold text-gray-700">Summary</p>
-          <p className="text-xs text-gray-600 mt-1">{result.summary}</p>
+        <div className="bg-[var(--color-surface-hover)] border border-[var(--color-line)] rounded-lg p-3">
+          <p className="text-xs font-bold text-[var(--color-ink)]">Summary</p>
+          <p className="text-xs text-[var(--color-ink)] mt-1">{result.summary}</p>
         </div>
       )}
 
       {result.overall_assessment && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-          <p className="text-xs font-bold text-gray-700">Overall Assessment</p>
-          <p className="text-xs text-gray-600 mt-1">{result.overall_assessment}</p>
+        <div className="bg-[var(--color-surface-hover)] border border-[var(--color-line)] rounded-lg p-3">
+          <p className="text-xs font-bold text-[var(--color-ink)]">Overall Assessment</p>
+          <p className="text-xs text-[var(--color-ink)] mt-1">{result.overall_assessment}</p>
         </div>
       )}
 
@@ -242,7 +242,7 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
           <h5 className="text-xs font-bold text-green-700 uppercase tracking-wider mb-2">Agreements</h5>
           <ul className="space-y-1">
             {result.agreements.map((a: string, i: number) => (
-              <li key={i} className="text-xs text-gray-700 flex items-start gap-2">
+              <li key={i} className="text-xs text-[var(--color-ink)] flex items-start gap-2">
                 <span className="text-green-500 mt-0.5">✓</span>
                 {a}
               </li>

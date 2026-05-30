@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str = "" # service_role key (dùng backend storage)
     SUPABASE_JWT_SECRET: str = ""      # để verify JWT server-side
     SUPABASE_STORAGE_BUCKET: str = "pdfs"
+    SUPABASE_SIGNED_URL_EXPIRES_SECONDS: int = 300
 
     # ── External APIs ─────────────────────────────────────────────────────────
     GEMINI_API_KEY: str = ""           # Google Gemini API key

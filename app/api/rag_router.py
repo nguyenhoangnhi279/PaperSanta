@@ -45,10 +45,14 @@ async def retrieve_chunks(
     (Không gọi LLM, không lưu lịch sử)
     """
     t0 = time.time()
+    if req.pdf_id:
+        await PDFService.get_by_id(req.pdf_id, session, current_user["user_id"])
+
     pdf_ids = [req.pdf_id] if req.pdf_id else None
 
     results = await RAGService.similarity_search(
         session=session,
+        user_id=current_user["user_id"],
         query_text=req.query_text,
         pdf_ids=pdf_ids,
         top_k=req.top_k,

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Reader from './components/Reader';
@@ -13,15 +14,15 @@ import type { PDFDocument, ActiveView } from './types';
 function LoginPage() {
   const { signIn } = useAuth();
   return (
-    <div className="h-screen flex items-center justify-center bg-[#F8F9FA]">
-      <div className="text-center p-12 bg-white border border-gray-200 rounded-2xl max-w-sm w-[90%] shadow-sm">
-        <div className="text-3xl font-bold text-[#1A1A1A] mb-2">
-          Paper<span className="text-blue-600">Santa</span>
+    <div className="h-screen flex items-center justify-center bg-[var(--color-bg)]">
+      <div className="text-center p-12 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-2xl max-w-sm w-[90%] shadow-sm">
+        <div className="text-3xl font-bold text-[var(--color-ink)] mb-2">
+          Paper<span className="text-[var(--color-accent)]">Santa</span>
         </div>
-        <p className="text-gray-500 mb-8 text-sm">PDF Storage & RAG Pipeline</p>
+        <p className="text-[var(--color-ink-secondary)] mb-8 text-sm">PDF Storage & RAG Pipeline</p>
         <button
           onClick={signIn}
-          className="inline-flex items-center gap-2.5 px-7 py-3 border border-gray-200 rounded-lg bg-white text-sm font-medium hover:border-blue-500 hover:shadow-sm transition-all"
+          className="inline-flex items-center gap-2.5 px-7 py-3 border border-[var(--color-line)] rounded-lg bg-[var(--color-surface)] text-sm font-medium text-[var(--color-ink)] hover:border-[var(--color-accent)] hover:shadow-sm transition-all"
         >
           <svg width="20" height="20" viewBox="0 0 48 48">
             <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
@@ -77,11 +78,11 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#F8F9FA]">
+    <div className="h-screen flex items-center justify-center bg-[var(--color-bg)]">
         <motion.div
           animate={{ scale: [1, 1.1, 1] }}
           transition={{ repeat: Infinity, duration: 2 }}
-          className="text-2xl font-bold tracking-tighter"
+          className="text-2xl font-bold tracking-tighter text-[var(--color-ink)]"
         >
           PaperSanta
         </motion.div>
@@ -94,7 +95,7 @@ function AppContent() {
   }
 
   return (
-    <div className="flex h-screen bg-[#F8F9FA] overflow-hidden">
+    <div className="flex h-screen bg-[var(--color-bg)] overflow-hidden">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -181,8 +182,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

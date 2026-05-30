@@ -103,21 +103,21 @@ export default function Discovery() {
   };
 
   return (
-    <div className="flex-1 bg-white overflow-y-auto">
+    <div className="flex-1 bg-[var(--color-surface)] overflow-y-auto">
       <div className="max-w-4xl mx-auto p-12 space-y-8">
         <header className="space-y-2">
           <h2 className="text-2xl font-bold tracking-tight">Search Papers</h2>
-          <p className="text-gray-400 text-sm">
+          <p className="text-[var(--color-ink-secondary)] text-sm">
             Discover academic papers from around the web via Semantic Scholar.
           </p>
         </header>
 
         {/* Tab Switcher */}
-        <div className="flex space-x-4 border-b border-gray-200 mb-6">
+        <div className="flex space-x-4 border-b border-[var(--color-line)] mb-6">
           <button
             onClick={() => handleTabChange('topic')}
             className={`pb-2 text-sm font-medium ${
-              activeTab === 'topic' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-600'
+              activeTab === 'topic' ? 'text-[var(--color-accent)] border-b-2 border-[var(--color-accent)]' : 'text-[var(--color-ink-secondary)] hover:text-[var(--color-ink)]'
             }`}
           >
             Search by Topic
@@ -125,7 +125,7 @@ export default function Discovery() {
           <button
             onClick={() => handleTabChange('related')}
             className={`pb-2 text-sm font-medium ${
-              activeTab === 'related' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-600'
+              activeTab === 'related' ? 'text-[var(--color-accent)] border-b-2 border-[var(--color-accent)]' : 'text-[var(--color-ink-secondary)] hover:text-[var(--color-ink)]'
             }`}
           >
             Related to Library
@@ -134,7 +134,7 @@ export default function Discovery() {
 
         {/* Khung báo lỗi dùng chung */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4">
+          <div className="bg-[var(--color-danger-subtle)] border border-[var(--color-danger-subtle)] text-[var(--color-danger)] text-sm rounded-xl p-4">
             {error}
           </div>
         )}
@@ -143,62 +143,62 @@ export default function Discovery() {
         {activeTab === 'topic' ? (
           <div className="space-y-3">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-ink-secondary)]" size={18} />
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="Search for papers by topic, title, or author..."
-                className="w-full pl-12 pr-4 py-3.5 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-gray-50/50"
+                className="w-full pl-12 pr-4 py-3.5 border border-[var(--color-line)] rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-subtle)] focus:border-[var(--color-accent)] bg-[var(--color-surface-hover)]/50"
               />
               <button
                 onClick={handleSearch}
                 disabled={searching || !query.trim()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-[var(--color-accent)] text-white px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-[var(--color-accent)]/80 disabled:opacity-50 transition-colors"
               >
                 {searching ? 'Searching...' : 'Search'}
               </button>
             </div>
 
-            <div className="rounded-2xl border border-gray-100 bg-gray-50/40 p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Filters (optional)</p>
+            <div className="rounded-2xl border border-[var(--color-line-subtle)] bg-[var(--color-surface-hover)]/40 p-4">
+              <p className="text-[10px] font-bold text-[var(--color-ink-secondary)] uppercase tracking-widest mb-3">Filters (optional)</p>
               <div className="flex items-center gap-2 flex-wrap">
                 <input
                   type="number"
                   placeholder="Year from"
                   value={yearFrom}
                   onChange={(e) => setYearFrom(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-24 px-2 py-1.5 border border-gray-200 rounded-md bg-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="w-24 px-2 py-1.5 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)] text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                 />
                 <input
                   type="number"
                   placeholder="Year to"
                   value={yearTo}
                   onChange={(e) => setYearTo(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-24 px-2 py-1.5 border border-gray-200 rounded-md bg-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="w-24 px-2 py-1.5 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)] text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                 />
                 <input
                   type="number"
                   placeholder="Min citations"
                   value={minCitations}
                   onChange={(e) => setMinCitations(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-28 px-2 py-1.5 border border-gray-200 rounded-md bg-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="w-28 px-2 py-1.5 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)] text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                 />
               </div>
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl border border-gray-100 bg-gray-50/40 p-4 space-y-3">
+          <div className="rounded-2xl border border-[var(--color-line-subtle)] bg-[var(--color-surface-hover)]/40 p-4 space-y-3">
             <div className="flex items-end gap-3 flex-col sm:flex-row">
               <div className="flex-1 w-full space-y-2">
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                <label className="block text-[10px] font-bold text-[var(--color-ink-secondary)] uppercase tracking-widest">
                   Search related papers from your library
                 </label>
                 <select
                   value={selectedPdfId}
                   onChange={(e) => setSelectedPdfId(e.target.value)}
-                  className="w-full border border-gray-200 rounded-2xl text-sm px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                  className="w-full border border-[var(--color-line)] rounded-2xl text-sm px-4 py-3 bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-subtle)] focus:border-[var(--color-accent)]"
                 >
                   <option value="">Select a PDF...</option>
                   {papers.map((paper) => (
@@ -213,26 +213,26 @@ export default function Discovery() {
                     placeholder="Year from"
                     value={relatedYearFrom}
                     onChange={(e) => setRelatedYearFrom(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-24 px-2 py-1 border border-gray-200 rounded-md bg-white"
+                    className="w-24 px-2 py-1 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)]"
                   />
                   <input
                     type="number"
                     placeholder="Year to"
                     value={relatedYearTo}
                     onChange={(e) => setRelatedYearTo(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-24 px-2 py-1 border border-gray-200 rounded-md bg-white"
+                    className="w-24 px-2 py-1 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)]"
                   />
                   <input
                     type="number"
                     placeholder="Min citations"
                     value={relatedMinCitations}
                     onChange={(e) => setRelatedMinCitations(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-28 px-2 py-1 border border-gray-200 rounded-md bg-white"
+                    className="w-28 px-2 py-1 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)]"
                   />
                   <select
                     value={relatedLimit}
                     onChange={(e) => setRelatedLimit(Number(e.target.value))}
-                    className="w-20 px-2 py-1 border border-gray-200 rounded-md bg-white"
+                    className="w-20 px-2 py-1 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)]"
                   >
                     <option value={5}>5</option>
                     <option value={10}>10</option>
@@ -247,12 +247,12 @@ export default function Discovery() {
               <button
                 onClick={handleRelatedSearch}
                 disabled={relatedSearching || !selectedPdfId}
-                className="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors h-10"
+                className="bg-[var(--color-accent)] text-white px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-[var(--color-accent)]/80 disabled:opacity-50 transition-colors h-10"
               >
                 {relatedSearching ? 'Searching...' : 'Related papers'}
               </button>
             </div>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-[var(--color-ink-secondary)]">
               Use this button to find Semantic Scholar papers related to one of your uploaded PDFs.
             </p>
           </div>
@@ -260,7 +260,7 @@ export default function Discovery() {
 
         {/* ----------------- TRẠNG THÁI LOADING (DÙNG CHUNG) ----------------- */}
         {(searching || relatedSearching) && (
-          <div className="flex items-center justify-center gap-2 py-12 text-gray-400">
+          <div className="flex items-center justify-center gap-2 py-12 text-[var(--color-ink-secondary)]">
             <Loader2 size={20} className="animate-spin" />
             <span className="text-sm">Searching...</span>
           </div>
@@ -271,7 +271,7 @@ export default function Discovery() {
           <>
             {results && results.length > 0 && (
               <div className="space-y-3">
-                <p className="text-xs text-gray-400">{total} result{total !== 1 ? 's' : ''} for "{query}"</p>
+                <p className="text-xs text-[var(--color-ink-secondary)]">{total} result{total !== 1 ? 's' : ''} for "{query}"</p>
                 {results.map((paper) => (
                   <PaperCard key={paper.s2_id} paper={paper} />
                 ))}
@@ -280,8 +280,8 @@ export default function Discovery() {
             
             {results && results.length === 0 && !error && (
               <div className="text-center py-20 space-y-4">
-                <BookOpen size={48} className="mx-auto text-gray-200" />
-                <p className="text-gray-400 text-sm">
+                <BookOpen size={48} className="mx-auto text-[var(--color-line)]" />
+                <p className="text-[var(--color-ink-secondary)] text-sm">
                   {query ? 'No results found. Try a different query.' : 'Search results will appear here.'}
                 </p>
               </div>
@@ -294,7 +294,7 @@ export default function Discovery() {
           <>
             {relatedResults && relatedResults.length > 0 && (
               <div className="space-y-3 pt-4">
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-[var(--color-ink-secondary)]">
                   Related papers from {papers.find((paper) => paper.id === selectedPdfId)?.original_name || 'selected PDF'}
                 </p>
                 {relatedResults.map((paper) => (
@@ -305,8 +305,8 @@ export default function Discovery() {
 
             {relatedResults && relatedResults.length === 0 && !error && selectedPdfId && (
               <div className="text-center py-10 space-y-4">
-                <BookOpen size={40} className="mx-auto text-gray-200" />
-                <p className="text-gray-400 text-sm">No related papers found for the selected PDF.</p>
+                <BookOpen size={40} className="mx-auto text-[var(--color-line)]" />
+                <p className="text-[var(--color-ink-secondary)] text-sm">No related papers found for the selected PDF.</p>
               </div>
             )}
           </>
@@ -320,27 +320,27 @@ export default function Discovery() {
 function PaperCard({ paper }: { paper: SearchResult }) {
   const link = paper.open_access_pdf || `https://www.semanticscholar.org/paper/${paper.s2_id}`;
   return (
-    <div className="border border-gray-100 rounded-xl p-5 space-y-2 hover:border-gray-200 transition-colors">
+    <div className="border border-[var(--color-line-subtle)] rounded-xl p-5 space-y-2 hover:border-[var(--color-line)] transition-colors">
       <div className="flex items-start justify-between gap-4">
-        <h3 className="font-semibold text-sm leading-snug text-gray-900">
-          <a href={link} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 transition-colors">
+        <h3 className="font-semibold text-sm leading-snug text-[var(--color-ink)]">
+          <a href={link} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--color-accent)] transition-colors">
             {paper.title}
           </a>
         </h3>
-        <a href={link} target="_blank" rel="noopener noreferrer" className="shrink-0 text-gray-300 hover:text-blue-500 transition-colors">
+        <a href={link} target="_blank" rel="noopener noreferrer" className="shrink-0 text-[var(--color-ink-secondary)] hover:text-[var(--color-accent)] transition-colors">
           <ExternalLink size={14} />
         </a>
       </div>
       {paper.authors.length > 0 && (
-        <p className="text-xs text-gray-500">{paper.authors.join(', ')}</p>
+        <p className="text-xs text-[var(--color-ink-secondary)]">{paper.authors.join(', ')}</p>
       )}
-      <div className="flex items-center gap-3 text-xs text-gray-400">
+      <div className="flex items-center gap-3 text-xs text-[var(--color-ink-secondary)]">
         {paper.year && <span>{paper.year}</span>}
         {paper.venue && <span className="italic">{paper.venue}</span>}
-        <span className="font-medium text-gray-500">{paper.citation_count} citations</span>
+        <span className="font-medium text-[var(--color-ink-secondary)]">{paper.citation_count} citations</span>
       </div>
       {paper.abstract && (
-        <p className="text-xs text-gray-400 line-clamp-2">{paper.abstract}</p>
+        <p className="text-xs text-[var(--color-ink-secondary)] line-clamp-2">{paper.abstract}</p>
       )}
     </div>
   );

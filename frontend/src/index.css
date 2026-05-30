@@ -1,12 +1,38 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
   --color-bg: #F8F9FA;
+  --color-surface: #FFFFFF;
+  --color-surface-hover: #F3F4F6;
   --color-ink: #1A1A1A;
+  --color-ink-secondary: #6B7280;
   --color-line: #E5E7EB;
+  --color-line-subtle: #F3F4F6;
   --color-accent: #2563EB;
+  --color-accent-subtle: #DBEAFE;
+  --color-danger: #EF4444;
+  --color-danger-subtle: #FEF2F2;
+}
+
+.dark {
+  --color-bg: #0F172A;
+  --color-surface: #1E293B;
+  --color-surface-hover: #334155;
+  --color-ink: #F1F5F9;
+  --color-ink-secondary: #94A3B8;
+  --color-line: #334155;
+  --color-line-subtle: #1E293B;
+  --color-accent: #3B82F6;
+  --color-accent-subtle: #1E3A5F;
+  --color-danger: #F87171;
+  --color-danger-subtle: #3B1F1F;
 }
 
 @layer base {

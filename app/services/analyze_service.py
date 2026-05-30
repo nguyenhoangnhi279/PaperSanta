@@ -312,7 +312,7 @@ class AnalyzeService:
         # 1. Retrieve chunks
         pdf_uuids = [UUID(pid) for pid in pdf_ids]
         retrieved = await RAGService.similarity_search(
-            db, cfg["query"], pdf_ids=pdf_uuids, top_k=cfg["top_k"]
+            db, user_id, cfg["query"], pdf_ids=pdf_uuids, top_k=cfg["top_k"]
         )
 
         if not retrieved:
