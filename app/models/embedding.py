@@ -7,12 +7,14 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from sqlalchemy import String, Integer, DateTime, Text, ForeignKey, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from pgvector.sqlalchemy import Vector
 from app.core.database import Base
+from app.core.config import settings
 
 if TYPE_CHECKING:
     from app.models.pdf_document import PDFDocument
+    from app.models.pdf_block import PDFBlock
 
 
 class PDFChunk(Base):
@@ -39,12 +41,20 @@ class PDFChunk(Base):
         nullable=True,
         index=True,
     )
+    block_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("pdf_blocks.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     # ── Chunk info ────────────────────────────────────────────────────────────
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
     token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     chunk_type: Mapped[str] = mapped_column(String(10), default="child", nullable=False)
+    source_block_type: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    section_path: Mapped[list | None] = mapped_column(JSONB, nullable=True)
 
     # ── Metadata ──────────────────────────────────────────────────────────────
     page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -66,6 +76,7 @@ class PDFChunk(Base):
 
     # ── Relationship ──────────────────────────────────────────────────────────
     pdf_document: Mapped["PDFDocument"] = relationship("PDFDocument", back_populates="chunks")
+    block: Mapped["PDFBlock | None"] = relationship("PDFBlock", back_populates="chunks")
     embeddings: Mapped[list["PDFEmbedding"]] = relationship(
         "PDFEmbedding",
         back_populates="chunk",
@@ -103,7 +114,7 @@ class PDFEmbedding(Base):
     # ── Embedding vector ──────────────────────────────────────────────────────
     # Dùng pgvector extension của PostgreSQL (dimension = 384 cho all-MiniLM-L6-v2)
     vector: Mapped[str] = mapped_column(
-        Vector(384),
+        Vector(settings.EMBEDDING_DIMENSION),
         nullable=False,
         index=True,
     )
@@ -111,12 +122,12 @@ class PDFEmbedding(Base):
     # ── Embedding metadata ────────────────────────────────────────────────────
     embedding_model: Mapped[str] = mapped_column(
         String(100),
-        default="all-MiniLM-L6-v2",
+        default=settings.EMBEDDING_MODEL_NAME,
         nullable=False,
     )
     embedding_dimension: Mapped[int] = mapped_column(
         Integer,
-        default=384,
+        default=settings.EMBEDDING_DIMENSION,
         nullable=False,
     )
 

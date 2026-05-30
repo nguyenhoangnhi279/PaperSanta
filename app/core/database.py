@@ -15,6 +15,15 @@ class Base(DeclarativeBase):
     pass
 
 
+def import_all_models() -> None:
+    """Import ORM models so SQLAlchemy metadata is fully registered."""
+    from app.models.pdf_document import PDFDocument  # noqa: F401
+    from app.models.pdf_block import PDFBlock  # noqa: F401
+    from app.models.embedding import PDFChunk, PDFEmbedding  # noqa: F401
+    from app.models.chat import ChatSession  # noqa: F401
+    from app.models.analysis import MultiAnalysis, AnalysisDocument  # noqa: F401
+
+
 # ── Engine ────────────────────────────────────────────────────────────────────
 engine = create_async_engine(
     settings.database_url,
@@ -57,6 +66,7 @@ async def get_db() -> AsyncSession:
 async def init_db():
     """Tạo tất cả tables nếu chưa tồn tại"""
     try:
+        import_all_models()
         async with engine.begin() as conn:
             logger.info("Checking/Initializing database tables...")
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
@@ -70,12 +80,7 @@ async def init_db():
 
 async def drop_db():
     """Dùng khi test: xóa tất cả tables"""
+    import_all_models()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         logger.warning("All tables dropped.")
-
-
-from app.models.pdf_document import PDFDocument  # noqa: E402, F401
-from app.models.embedding import PDFChunk, PDFEmbedding  # noqa: E402, F401
-from app.models.chat import ChatSession  # noqa: E402, F401
-from app.models.analysis import MultiAnalysis, AnalysisDocument  # noqa: E402, F401

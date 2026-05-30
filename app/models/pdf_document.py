@@ -4,6 +4,7 @@ pdf_document.py — ORM model cho bảng pdf_documents
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 from sqlalchemy import String, Integer, DateTime, Text, Boolean, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -11,7 +12,11 @@ from sqlalchemy.dialects.postgresql import UUID, ARRAY
 import enum
 
 from app.core.database import Base
-from app.models.embedding import PDFChunk  # tránh circular import
+
+
+if TYPE_CHECKING:
+    from app.models.pdf_block import PDFBlock
+    from app.models.embedding import PDFChunk
 
 
 class ProcessingStatus(str, enum.Enum):
@@ -73,6 +78,11 @@ class PDFDocument(Base):
     # ── Relationships ─────────────────────────────────────────────────────────
     chunks: Mapped[list["PDFChunk"]] = relationship(
         "PDFChunk",
+        back_populates="pdf_document",
+        cascade="all, delete-orphan",
+    )
+    blocks: Mapped[list["PDFBlock"]] = relationship(
+        "PDFBlock",
         back_populates="pdf_document",
         cascade="all, delete-orphan",
     )
