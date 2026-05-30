@@ -14,4 +14,7 @@ deep-translator
 requests
 httpx
 openai
+numpy
+sentence-transformers
+pymupdf4llm
 
