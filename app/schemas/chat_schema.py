@@ -41,6 +41,21 @@ class ChatResponse(BaseModel):
     completion_tokens: int = 0
 
 
+class ExplainSelectionRequest(BaseModel):
+    pdf_id: UUID
+    selected_text: str = Field(..., min_length=1)
+    page_number: Optional[int] = Field(None, ge=1)
+    surrounding_text: Optional[str] = None
+    top_k: int = Field(default=8, ge=1, le=20)
+
+
+class ExplainSelectionResponse(BaseModel):
+    answer: str
+    citations: list[CitationResult]
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+
+
 class ChatMessageItem(BaseModel):
     role: str
     content: str

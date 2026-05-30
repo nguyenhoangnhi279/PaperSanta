@@ -61,6 +61,27 @@ export async function ragChat(
   return parseResponse(res);
 }
 
+export async function explainSelection(
+  payload: {
+    pdf_id: string;
+    selected_text: string;
+    page_number?: number | null;
+    surrounding_text?: string | null;
+    top_k?: number;
+  },
+  token?: string | null
+): Promise<{ answer: string; citations: any[]; prompt_tokens: number; completion_tokens: number }> {
+  const res = await fetch(`${API_BASE}/explain-selection`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(token),
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseResponse(res);
+}
+
 export async function fetchSessions(
   token?: string | null,
   skip = 0,

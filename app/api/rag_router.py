@@ -24,6 +24,8 @@ from app.schemas.chat_schema import (
     ChatRequest,
     ChatResponse,
     CitationResult,
+    ExplainSelectionRequest,
+    ExplainSelectionResponse,
     ChatSessionResponse,
     ChatSessionListResponse,
 )
@@ -121,6 +123,40 @@ async def chat_with_pdfs(
         citations=[
             CitationResult(**c) for c in result["citations"]
         ],
+        prompt_tokens=result["prompt_tokens"],
+        completion_tokens=result["completion_tokens"],
+    )
+
+
+@router.post("/explain-selection", response_model=ExplainSelectionResponse)
+async def explain_selection(
+    req: ExplainSelectionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    from app.models.pdf_document import PDFDocument
+
+    verify = await db.execute(
+        select(PDFDocument.id).where(
+            PDFDocument.id == req.pdf_id,
+            PDFDocument.user_id == current_user["user_id"],
+        )
+    )
+    if not verify.scalar_one_or_none():
+        raise HTTPException(404, "PDF not found")
+
+    result = await RAGService.explain_selection(
+        db=db,
+        user_id=current_user["user_id"],
+        pdf_id=req.pdf_id,
+        selected_text=req.selected_text,
+        page_number=req.page_number,
+        surrounding_text=req.surrounding_text,
+        top_k=req.top_k,
+    )
+    return ExplainSelectionResponse(
+        answer=result["answer"],
+        citations=[CitationResult(**c) for c in result["citations"]],
         prompt_tokens=result["prompt_tokens"],
         completion_tokens=result["completion_tokens"],
     )
