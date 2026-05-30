@@ -44,14 +44,25 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
     MAX_FILE_SIZE_MB: int = 50
     ALLOWED_EXTENSIONS: list[str] = ["pdf"]
+    PDF_EXTRACTOR: str = "pypdf"
+    PDF_EXTRACT_WRITE_IMAGES: bool = False
 
     @property
     def max_file_size_bytes(self) -> int:
         return self.MAX_FILE_SIZE_MB * 1024 * 1024
 
     # ── Embedding ──────────────────────────────────────────────────────────────
+    EMBEDDING_PROVIDER: str = "sentence-transformers"
     EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
+    EMBEDDING_DIMENSION: int = 384
     EMBEDDING_DEVICE: str = "cpu"
+    EMBEDDING_QUERY_PREFIX: str = ""
+    EMBEDDING_DOCUMENT_PREFIX: str = ""
+    OPENAI_API_KEY: str = ""
+    OPENAI_EMBEDDING_DIMENSIONS: int | None = None
+    CHUNK_PARENT_SIZE_CHARS: int = 2800
+    CHUNK_CHILD_SIZE_CHARS: int = 450
+    CHUNK_CHILD_OVERLAP_CHARS: int = 120
 
     # ── RAG ────────────────────────────────────────────────────────────────────
     RAG_MIN_SCORE: float = 0.15
