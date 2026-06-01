@@ -13,12 +13,17 @@ export interface PDFDocument {
 }
 
 export interface Citation {
+  source_id?: number;
   chunk_id: string;
   chunk_text: string;
   score: number;
   pdf_id: string;
   pdf_name: string;
   page_number?: number;
+  block_id?: string;
+  section_path?: string[];
+  source_block_type?: string;
+  retrieval_sources?: string[];
 }
 
 export interface ChatMessage {
@@ -27,12 +32,14 @@ export interface ChatMessage {
   ts: string;
   tokens?: { prompt: number; completion: number };
   citations?: Citation[];
+  retrieval_query?: string;
 }
 
 export interface ChatSession {
   id: string;
   title: string;
   created_at: string;
+  updated_at?: string;
   pdf_ids: string[];
   messages?: ChatMessage[];
 }
