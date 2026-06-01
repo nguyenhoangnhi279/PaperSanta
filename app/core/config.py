@@ -63,9 +63,21 @@ class Settings(BaseSettings):
     CHUNK_PARENT_SIZE_CHARS: int = 2800
     CHUNK_CHILD_SIZE_CHARS: int = 450
     CHUNK_CHILD_OVERLAP_CHARS: int = 120
+    EMBED_MIN_CHUNK_WORDS: int = 20
 
     # ── RAG ────────────────────────────────────────────────────────────────────
     RAG_MIN_SCORE: float = 0.15
+    RAG_RETRIEVAL_MODE: str = "hybrid"
+    RAG_DENSE_CANDIDATES: int = 30
+    RAG_TEXT_CANDIDATES: int = 30
+    RAG_RRF_K: int = 60
+    RAG_DENSE_WEIGHT: float = 1.0
+    RAG_TEXT_WEIGHT: float = 0.02
+    RAG_RERANK_MODE: str = "none"
+    RAG_RERANK_CANDIDATES: int = 20
+    RAG_RERANK_LEXICAL_WEIGHT: float = 0.12
+    RAG_RERANK_PHRASE_WEIGHT: float = 0.04
+    RAG_RERANK_SECTION_WEIGHT: float = 0.03
     RAG_SYSTEM_PROMPT: str = (
         "Bạn là PaperSanta, một trợ lý AI chuyên nghiệp hỗ trợ kỹ sư và nhà nghiên cứu AI "
         "phân tích tài liệu học thuật (Computer Science, Machine Learning). "
