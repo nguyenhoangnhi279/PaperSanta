@@ -14,7 +14,7 @@ from app.models.pdf_document import PDFDocument, ProcessingStatus
 logger = logging.getLogger(__name__)
 
 from app.core.database import AsyncSessionLocal
-from app.services.embedding_service import EmbeddingService
+from app.services.embedding_service import EmbeddingService, should_embed_chunk
 from app.services.extraction_service import get_pdf_extractor, to_pdf_block
 from app.core.embedding_provider import EmbeddingProvider
 from app.core.deepseek_provider import DeepSeekProvider
@@ -365,7 +365,8 @@ class PDFService:
                     return
 
                 # Embed only children chunks (parents dùng cho context/summarize)
-                child_chunks = [c for c in chunks if c.chunk_type == "child"]
+                all_child_chunks = [c for c in chunks if c.chunk_type == "child"]
+                child_chunks = [c for c in all_child_chunks if should_embed_chunk(c)]
                 if child_chunks:
                     chunk_texts = [c.chunk_text for c in child_chunks]
                     chunk_ids = [c.id for c in child_chunks]
@@ -376,7 +377,8 @@ class PDFService:
                         vectors = await asyncio.to_thread(EmbeddingProvider.embed_documents, batch_texts)
                         await EmbeddingService.batch_create_embeddings(session, batch_ids, vectors)
                     await session.flush()
-                    logger.info(f"Embedded {len(child_chunks)} children for PDF: {pdf_id}")
+                    skipped = len(all_child_chunks) - len(child_chunks)
+                    logger.info(f"Embedded {len(child_chunks)} children for PDF: {pdf_id} (skipped={skipped})")
                 else:
                     logger.warning(f"No children to embed for PDF: {pdf_id}")
 

@@ -28,6 +28,9 @@ GARBAGE_PATTERNS = [
 ]
 
 
+SECTION_CONTEXT_PATTERN = re.compile(r"^\[Section:[^\]]+\]\s*", re.IGNORECASE)
+
+
 def _is_garbage(text: str) -> bool:
     t = text.strip()
     if len(t) < 50:
@@ -36,6 +39,26 @@ def _is_garbage(text: str) -> bool:
         if pat.match(t):
             return True
     return False
+
+
+def _content_without_section(text: str) -> str:
+    return SECTION_CONTEXT_PATTERN.sub("", text.strip(), count=1).strip()
+
+
+def should_embed_chunk(chunk: PDFChunk) -> bool:
+    if chunk.chunk_type != "child":
+        return False
+    if chunk.source_block_type in {"table", "equation"}:
+        return True
+    if chunk.source_block_type == "heading":
+        return False
+
+    content = _content_without_section(chunk.chunk_text or "")
+    if not content or content.startswith("#"):
+        return False
+
+    words = re.findall(r"\b\w+\b", content)
+    return len(words) >= settings.EMBED_MIN_CHUNK_WORDS
 
 
 def _overlap_tail(text: str, overlap_size: int) -> str:
