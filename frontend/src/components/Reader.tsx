@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FileText, Send, AlertCircle, MessageSquare, LayoutDashboard, ChevronRight, Trash2, Sparkles } from 'lucide-react';
-import { motion } from 'motion/react';
+import { FileText, Send, MessageSquare, Trash2, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 import { ragChat, fetchSessions, fetchSession, deleteSession } from '../api/rag';
@@ -16,26 +15,21 @@ interface ReaderProps {
   onBack: () => void;
 }
 
-export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
+export default function Reader({ paper, onBack }: ReaderProps) {
   const { session: authSession } = useAuth();
   const token = authSession?.access_token;
 
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [selectedPdfIds, setSelectedPdfIds] = useState<string[]>(() =>
-    paper ? [paper.id] : []
-  );
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [showSessions, setShowSessions] = useState(false);
-  const [showPdfSelector, setShowPdfSelector] = useState(false);
-  const [errorVisible, setErrorVisible] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [targetPage, setTargetPage] = useState<number | null>(null);
   const [viewerTarget, setViewerTarget] = useState<{ page: number; text?: string } | null>(null);
+  const selectedPdfIds = paper ? [paper.id] : [];
 
   // Load PDF URL when paper changes
   useEffect(() => {
@@ -49,6 +43,12 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
       .catch(() => { if (!canceled) setPdfUrl(null); });
     return () => { canceled = true; };
   }, [paper?.id, token]);
+
+  useEffect(() => {
+    setMessages([]);
+    setSessionId(null);
+    setViewerTarget(null);
+  }, [paper?.id]);
 
   // Auto-scroll
   useEffect(() => {
@@ -72,7 +72,6 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
       const data = await fetchSession(sid, token);
       setSessionId(data.id);
       setMessages(data.messages || []);
-      if (data.pdf_ids?.length) setSelectedPdfIds(data.pdf_ids);
       setShowSessions(false);
     } catch { /* ignore */ }
   };
@@ -80,12 +79,6 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
   const newChat = () => {
     setMessages([]);
     setSessionId(null);
-  };
-
-  const togglePdf = (id: string) => {
-    setSelectedPdfIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
   };
 
   const handleSend = async () => {
@@ -111,6 +104,7 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
           content: result.answer,
           ts: new Date().toISOString(),
           tokens: { prompt: result.prompt_tokens, completion: result.completion_tokens },
+          retrieval_query: result.retrieval_query || undefined,
           citations: result.citations?.map((c: any) => ({
             source_id: c.source_id,
             chunk_id: c.chunk_id || '',
@@ -119,6 +113,10 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
             pdf_id: c.pdf_id || '',
             pdf_name: c.pdf_name || '',
             page_number: c.page_number,
+            block_id: c.block_id,
+            section_path: c.section_path,
+            source_block_type: c.source_block_type,
+            retrieval_sources: c.retrieval_sources,
           })),
         },
       ]);
@@ -162,7 +160,9 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
     }
   };
 
-  const selectedDocs = allPapers.filter((d) => selectedPdfIds.includes(d.id));
+  const visibleSessions = paper
+    ? sessions.filter((s) => s.pdf_ids?.includes(paper.id))
+    : sessions;
 
   return (
     <div className="flex h-full bg-[var(--color-surface)] overflow-hidden">
@@ -237,10 +237,10 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
         {showSessions && (
           <div className="border-b border-[var(--color-line-subtle)] bg-[var(--color-surface)] max-h-48 overflow-y-auto">
             <div className="px-4 py-2 text-[10px] font-bold text-[var(--color-ink-secondary)] uppercase tracking-wider">Chat History</div>
-            {sessions.length === 0 ? (
+            {visibleSessions.length === 0 ? (
               <div className="px-4 py-3 text-xs text-[var(--color-ink-secondary)] italic">No chat history</div>
             ) : (
-              sessions.map((s) => (
+              visibleSessions.map((s) => (
                 <div
                   key={s.id}
                   className={cn(
@@ -262,52 +262,14 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
           </div>
         )}
 
-        {/* PDF Selector */}
+        {/* Active PDF scope */}
         <div className="px-4 py-2 border-b border-[var(--color-line-subtle)]">
-          <button
-            onClick={() => setShowPdfSelector(!showPdfSelector)}
-            className="flex items-center gap-2 text-xs text-[var(--color-ink)] hover:text-[var(--color-ink)]"
-          >
-            <LayoutDashboard size={14} />
-            <span>
-              {selectedDocs.length === 0
-                ? 'Select PDFs to chat...'
-                : `${selectedDocs.length} PDF(s) selected`}
+          <div className="flex items-center gap-2 text-xs text-[var(--color-ink)]">
+            <FileText size={14} className="text-[var(--color-accent)] shrink-0" />
+            <span className="truncate">
+              {paper ? paper.original_name : 'No PDF selected'}
             </span>
-            <ChevronRight size={12} className={cn('transition-transform', showPdfSelector && 'rotate-90')} />
-          </button>
-          {showPdfSelector && (
-            <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
-              {allPapers.length === 0 ? (
-                <div className="text-xs text-[var(--color-ink-secondary)] italic px-2">No PDFs uploaded yet</div>
-              ) : (
-                allPapers.map((doc) => (
-                  <label key={doc.id} className="flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-[var(--color-surface)] rounded cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedPdfIds.includes(doc.id)}
-                      onChange={() => togglePdf(doc.id)}
-                      className="accent-[var(--color-accent)]"
-                    />
-                    <span className="truncate flex-1">{doc.original_name}</span>
-                  </label>
-                ))
-              )}
-            </div>
-          )}
-          {selectedDocs.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
-              {selectedDocs.slice(0, 3).map((d) => (
-                <span key={d.id} className="inline-flex items-center gap-1 bg-[var(--color-accent-subtle)] text-[var(--color-accent)] text-[10px] px-2 py-0.5 rounded-full">
-                  {d.original_name}
-                  <button onClick={() => togglePdf(d.id)} className="hover:text-[var(--color-danger)]">×</button>
-                </span>
-              ))}
-              {selectedDocs.length > 3 && (
-                <span className="text-[10px] text-[var(--color-ink-secondary)] px-1">+{selectedDocs.length - 3}</span>
-              )}
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Messages */}
@@ -315,7 +277,7 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-[var(--color-ink-secondary)] space-y-3">
               <MessageSquare size={32} className="opacity-30" />
-              <p className="text-xs italic">Select PDFs above and ask a question.</p>
+              <p className="text-xs italic">Ask a question about the opened PDF.</p>
             </div>
           ) : (
             messages.map((m, idx) => (
@@ -348,7 +310,7 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
                           key={i}
                           title={c.chunk_text}
                           onClick={() => {
-                            if (c.page_number) {
+                            if (c.page_number && c.pdf_id === paper?.id) {
                               setViewerTarget({ page: c.page_number, text: c.chunk_text });
                            }
                           }}
@@ -381,8 +343,8 @@ export default function Reader({ paper, allPapers, onBack }: ReaderProps) {
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
               placeholder={
                 selectedPdfIds.length === 0
-                  ? 'Select PDFs to start chatting...'
-                  : 'Ask a question about the selected PDFs...'
+                  ? 'Open a PDF to start chatting...'
+                  : 'Ask a question about this PDF...'
               }
               disabled={loading || selectedPdfIds.length === 0}
               className="flex-1 bg-transparent px-4 py-2 text-xs focus:outline-none placeholder:text-[var(--color-ink-secondary)] disabled:opacity-50"

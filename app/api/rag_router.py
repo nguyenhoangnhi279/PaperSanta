@@ -125,6 +125,7 @@ async def chat_with_pdfs(
         ],
         prompt_tokens=result["prompt_tokens"],
         completion_tokens=result["completion_tokens"],
+        retrieval_query=result.get("retrieval_query"),
     )
 
 
@@ -178,7 +179,7 @@ async def list_sessions(
     result = await db.execute(
         select(ChatSession)
         .where(ChatSession.user_id == current_user["user_id"])
-        .order_by(ChatSession.created_at.desc())
+        .order_by(ChatSession.updated_at.desc(), ChatSession.created_at.desc())
         .offset(skip)
         .limit(limit)
     )

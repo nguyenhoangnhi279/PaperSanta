@@ -44,7 +44,7 @@ export async function ragChat(
   token?: string | null,
   sessionId?: string | null,
   topK = 5
-): Promise<{ answer: string; session_id: string; citations: any[]; prompt_tokens: number; completion_tokens: number }> {
+): Promise<{ answer: string; session_id: string; citations: any[]; prompt_tokens: number; completion_tokens: number; retrieval_query?: string | null }> {
   const res = await fetch(`${API_BASE}/chat`, {
     method: 'POST',
     headers: {
