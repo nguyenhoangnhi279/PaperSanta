@@ -28,6 +28,9 @@ class ChatSession(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow, nullable=False,
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False,
+    )
 
     def __repr__(self) -> str:
         return f"<ChatSession id={self.id} user_id={self.user_id}>"
