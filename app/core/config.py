@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # ── External APIs ─────────────────────────────────────────────────────────
     GEMINI_API_KEY: str = ""           # Google Gemini API key
     SEMANTIC_SCHOLAR_API_KEY: str = "" # Semantic Scholar API key (optional)
+    TAVILY_API_KEY: str = ""           # Tavily API key (fallback search provider)
 
     @property
     def database_url(self) -> str:

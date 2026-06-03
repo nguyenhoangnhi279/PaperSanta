@@ -4,6 +4,7 @@ paper_search_service.py — Search papers via Semantic Scholar API
 
 import logging
 import asyncio
+import json
 from typing import List, Dict, Optional
 from datetime import datetime, timezone, timedelta
 import httpx
@@ -60,6 +61,60 @@ class PaperSearchService:
         return {}
 
     @staticmethod
+    async def _tavily_fallback_search(query: str, limit: int = 10) -> list:
+        """Tavily fallback + Gemini 1.5 Flash — chỉ dùng khi S2 = 0 kết quả"""
+        if not settings.TAVILY_API_KEY or not settings.GEMINI_API_KEY:
+            return []
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
+                    "https://api.tavily.com/search",
+                    json={"api_key": settings.TAVILY_API_KEY, "query": query, "max_results": limit, "include_answer": False},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+            
+            results = data.get("results", [])[:limit]
+            if not results:
+                return []
+            
+            # Format qua Gemini 1.5 Flash
+            async with httpx.AsyncClient(timeout=15) as client:
+                gemini_resp = await client.post(
+                    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+                    params={"key": settings.GEMINI_API_KEY},
+                    json={
+                        "contents": [{
+                            "parts": [{
+                                "text": f"""Extract structured paper data. Return ONLY a valid JSON array with: title, abstract (200-300 chars, professional summary), year (extract or null), authors (list), url.
+
+{json.dumps(results)}
+
+Return ONLY JSON array, no markdown."""
+                            }]
+                        }],
+                        "generationConfig": {"responseType": "APPLICATION_JSON"}
+                    },
+                )
+                gemini_resp.raise_for_status()
+                gemini_data = gemini_resp.json()
+                content = gemini_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                formatted = json.loads(content)
+                return [{
+                    "s2_id": p.get("url", ""),
+                    "title": p.get("title", ""),
+                    "abstract": p.get("abstract", ""),
+                    "year": p.get("year"),
+                    "authors": p.get("authors", []),
+                    "venue": "Tavily Search",
+                    "citation_count": 0,
+                    "open_access_pdf": p.get("url", ""),
+                } for p in formatted]
+        except Exception as e:
+            logger.warning(f"Tavily/Gemini error: {e}")
+            return []
+
+    @staticmethod
     async def search_papers(query: str, limit: int = 10, offset: int = 0, year_from: Optional[int] = None, year_to: Optional[int] = None, min_citations: Optional[int] = None) -> Dict[str, any]:
         try:
             if any(ord(char) > 127 for char in query):
@@ -67,7 +122,7 @@ class PaperSearchService:
                 if translated_query and translated_query != query:
                     query = translated_query
         except Exception as e:
-            logger.warning(f"⚠️ Dịch query thất bại: {e}")
+            logger.warning(f"Dịch query thất bại: {e}")
         
         cache_key = f"{query}|{limit}|{offset}|{year_from}|{year_to}"
         cached_result = PaperSearchService._check_cache(cache_key)
@@ -107,11 +162,16 @@ class PaperSearchService:
                     "citation_count": citation_count, "open_access_pdf": pdf_url,
                 })
 
-            result = {"total": data.get("total", 0), "query": query, "papers": papers}
+            # Fallback: Tavily nếu S2 = 0 kết quả
+            if not papers:
+                fallback_papers = await PaperSearchService._tavily_fallback_search(query, limit)
+                papers.extend(fallback_papers)
+
+            result = {"total": len(papers), "query": query, "papers": papers}
             _search_cache[cache_key] = {"data": result, "created_at": datetime.now(timezone.utc)}
             return result
         except Exception as e:
-            logger.error(f"❌ S2 search error: {e}")
+            logger.error(f"S2 search error: {e}")
             return {"total": 0, "query": query, "papers": []}
 
     @staticmethod
@@ -209,5 +269,5 @@ class PaperSearchService:
             sorted_papers = sorted(all_papers.values(), key=lambda p: p.get("citation_count", 0), reverse=True)[:limit]
             return {"source_pdf_id": str(pdf_id), "extracted_topics": topics, "related_papers": sorted_papers, "method": method}
         except Exception as e:
-            logger.error(f"❌ Related papers error: {e}")
+            logger.error(f"Related papers error: {e}")
             return {"error": f"Lỗi hệ thống: {str(e)}", "status_code": 500}
