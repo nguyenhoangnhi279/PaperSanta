@@ -1,0 +1,38 @@
+.pdf-viewer-scroll {
+  overscroll-behavior: contain;
+  user-select: text;
+}
+
+.pdf-zoom-toolbar {
+  user-select: none;
+}
+
+.pdf-page {
+  overflow: hidden;
+  contain: layout paint;
+}
+
+.pdf-page-canvas {
+  position: relative;
+  z-index: 1;
+  user-select: none;
+}
+
+.pdf-page-text-layer {
+  z-index: 2;
+  pointer-events: auto;
+  user-select: text;
+}
+
+.pdf-page-text-layer span,
+.pdf-page-text-layer br {
+  user-select: text;
+}
+
+.pdf-page-text-layer ::selection {
+  background: rgba(37, 99, 235, 0.32);
+}
+
+.pdf-page-text-layer ::-moz-selection {
+  background: rgba(37, 99, 235, 0.32);
+}

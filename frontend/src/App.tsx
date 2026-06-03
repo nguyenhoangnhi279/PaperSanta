@@ -38,7 +38,7 @@ function LoginPage() {
 }
 
 function AppContent() {
-  const { user, session, loading } = useAuth();
+  const { user, session, loading, logout } = useAuth();
   const token = session?.access_token;
 
   const [activeTab, setActiveTab] = useState<ActiveView>('dashboard');
@@ -49,10 +49,14 @@ function AppContent() {
     try {
       const data = await fetchPdfs(token);
       setPapers(data.documents ?? []);
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.status === 401) {
+        await logout();
+        return;
+      }
       console.error('fetch papers error:', err);
     }
-  }, [token]);
+  }, [logout, token]);
 
   useEffect(() => {
     if (!loading) {

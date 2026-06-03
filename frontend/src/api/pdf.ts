@@ -18,7 +18,9 @@ async function parseResponse<T>(response: Response): Promise<T> {
   if (response.ok) {
     return data as T;
   }
-  throw new Error(data?.detail || data?.message || response.statusText || 'API error');
+  const error = new Error(data?.detail || data?.message || response.statusText || 'API error');
+  (error as any).status = response.status;
+  throw error;
 }
 
 export async function fetchPdfs(token?: string | null): Promise<{ documents: PDFDocument[] }> {

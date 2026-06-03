@@ -28,18 +28,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    let canceled = false;
+
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session) {
+          if (!canceled) {
+            setSession(null);
+            setUser(null);
+          }
+          return;
+        }
+
+        const { data, error } = await supabase.auth.getUser();
+        if (error || !data.user) {
+          await supabase.auth.signOut({ scope: 'local' });
+          if (!canceled) {
+            setSession(null);
+            setUser(null);
+          }
+          return;
+        }
+
+        if (!canceled) {
+          setSession(session);
+          setUser(mapSupabaseUser(data.user));
+        }
+      } finally {
+        if (!canceled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initializeAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ? mapSupabaseUser(session.user) : null);
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ? mapSupabaseUser(session.user) : null);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      canceled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async () => {

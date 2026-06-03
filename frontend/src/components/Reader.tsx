@@ -81,8 +81,8 @@ export default function Reader({ paper, onBack }: ReaderProps) {
     setSessionId(null);
   };
 
-  const handleSend = async () => {
-    const text = input.trim();
+  const sendChatMessage = useCallback(async (messageText: string) => {
+    const text = messageText.trim();
     if (!text || loading || selectedPdfIds.length === 0) return;
 
     const userMsg: ChatMessage = {
@@ -129,7 +129,17 @@ export default function Reader({ paper, onBack }: ReaderProps) {
     } finally {
       setLoading(false);
     }
+  }, [loadSessions, loading, selectedPdfIds, sessionId, token]);
+
+  const handleSend = async () => {
+    await sendChatMessage(input);
   };
+
+  const handleExplainSelection = useCallback((selectedText: string) => {
+    const prompt = `Giải thích cho tôi cụm từ này: ${selectedText.trim()}`;
+    setInput(prompt);
+    void sendChatMessage(prompt);
+  }, [sendChatMessage]);
 
   const handleDeleteSession = async (sid: string) => {
     if (!token) return;
@@ -167,9 +177,9 @@ export default function Reader({ paper, onBack }: ReaderProps) {
   return (
     <div className="flex h-full bg-[var(--color-surface)] overflow-hidden">
       {/* PDF Viewer (left) */}
-      <div className="flex-1 border-r border-[var(--color-line)] overflow-hidden flex flex-col bg-[#525659]">
+      <div className="flex-1 min-h-0 border-r border-[var(--color-line)] overflow-hidden flex flex-col bg-[#525659]">
         {pdfUrl ? (
-          <div className="relative w-full h-full flex flex-col">
+          <div className="relative w-full h-full min-h-0 flex flex-col">
             <div className="bg-[#323639] text-white px-4 py-2 flex justify-between items-center text-sm border-b border-black/20 z-10">
               <span className="font-medium flex items-center gap-2 text-xs">
                 <FileText size={16} className="text-[var(--color-accent)]" />
@@ -179,10 +189,11 @@ export default function Reader({ paper, onBack }: ReaderProps) {
                 ← Back to Library
               </button>
             </div>
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-h-0">
               <PDFViewer 
                 url={pdfUrl} 
                 targetPage={viewerTarget?.page} 
+                onExplainSelection={handleExplainSelection}
               />
             </div>
           </div>
