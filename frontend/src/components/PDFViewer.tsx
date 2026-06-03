@@ -269,13 +269,8 @@ export default function PDFViewer({ url, targetPage, onExplainSelection }: PDFVi
   };
 
   return (
-    <div
-      ref={scrollRef}
-      className="pdf-viewer-scroll relative h-full w-full overflow-auto bg-[#525659] p-4"
-      onMouseUp={() => window.setTimeout(updateSelectionMenu, 0)}
-      onKeyUp={() => window.setTimeout(updateSelectionMenu, 0)}
-    >
-      <div className="pdf-zoom-toolbar sticky top-0 z-30 mb-3 ml-auto flex w-fit items-center overflow-hidden rounded-lg border border-black/10 bg-white text-xs font-semibold shadow-lg">
+    <div className="relative h-full w-full bg-[#525659]">
+      <div className="pdf-zoom-toolbar absolute right-4 top-4 z-30 flex w-fit items-center overflow-hidden rounded-lg border border-black/10 bg-white text-xs font-semibold shadow-lg">
         <button
           type="button"
           onClick={zoomOut}
@@ -304,53 +299,60 @@ export default function PDFViewer({ url, targetPage, onExplainSelection }: PDFVi
         </button>
       </div>
 
-      {error && (
-        <div className="mx-auto mt-8 max-w-md rounded-lg border border-[var(--color-danger-subtle)] bg-[var(--color-surface)] p-4 text-xs text-[var(--color-danger)] shadow">
-          {error}
-        </div>
-      )}
+      <div
+        ref={scrollRef}
+        className="pdf-viewer-scroll relative h-full w-full overflow-auto p-4 pt-14"
+        onMouseUp={() => window.setTimeout(updateSelectionMenu, 0)}
+        onKeyUp={() => window.setTimeout(updateSelectionMenu, 0)}
+      >
+        {error && (
+          <div className="mx-auto mt-8 max-w-md rounded-lg border border-[var(--color-danger-subtle)] bg-[var(--color-surface)] p-4 text-xs text-[var(--color-danger)] shadow">
+            {error}
+          </div>
+        )}
 
-      {!error && !pdfDocument && (
-        <div className="mt-8 text-center text-xs text-white/80">Loading PDF...</div>
-      )}
+        {!error && !pdfDocument && (
+          <div className="mt-8 text-center text-xs text-white/80">Loading PDF...</div>
+        )}
 
-      {pdfDocument && containerWidth > 0 && (
-        <div className="min-w-fit">
-          {Array.from({ length: pageCount }, (_, index) => (
-            <PDFPage
-              key={`${url}-${index + 1}`}
-              pageNumber={index + 1}
-              pdfDocument={pdfDocument}
-              containerWidth={containerWidth}
-              zoom={zoom}
-              registerPageRef={registerPageRef}
-            />
-          ))}
-        </div>
-      )}
+        {pdfDocument && containerWidth > 0 && (
+          <div className="min-w-fit">
+            {Array.from({ length: pageCount }, (_, index) => (
+              <PDFPage
+                key={`${url}-${index + 1}`}
+                pageNumber={index + 1}
+                pdfDocument={pdfDocument}
+                containerWidth={containerWidth}
+                zoom={zoom}
+                registerPageRef={registerPageRef}
+              />
+            ))}
+          </div>
+        )}
 
-      {selectionMenu && (
-        <div
-          className="absolute z-20 flex -translate-x-1/2 -translate-y-full overflow-hidden rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] text-xs font-semibold shadow-lg"
-          style={{ left: selectionMenu.x, top: selectionMenu.y }}
-          onMouseDown={(event) => event.preventDefault()}
-        >
-          <button
-            type="button"
-            onClick={handleExplain}
-            className="px-3 py-2 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)]"
+        {selectionMenu && (
+          <div
+            className="absolute z-20 flex -translate-x-1/2 -translate-y-full overflow-hidden rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] text-xs font-semibold shadow-lg"
+            style={{ left: selectionMenu.x, top: selectionMenu.y }}
+            onMouseDown={(event) => event.preventDefault()}
           >
-            Explain
-          </button>
-          <button
-            type="button"
-            onClick={clearSelection}
-            className="border-l border-[var(--color-line)] px-3 py-2 text-[var(--color-ink-secondary)] hover:bg-[var(--color-surface-hover)]"
-          >
-            Cancel
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              onClick={handleExplain}
+              className="px-3 py-2 text-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)]"
+            >
+              Explain
+            </button>
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="border-l border-[var(--color-line)] px-3 py-2 text-[var(--color-ink-secondary)] hover:bg-[var(--color-surface-hover)]"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
