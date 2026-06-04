@@ -19,6 +19,15 @@
   --color-accent-subtle: #DBEAFE;
   --color-danger: #EF4444;
   --color-danger-subtle: #FEF2F2;
+  --color-success: #15803D;
+  --color-success-subtle: #F0FDF4;
+  --color-success-border: #BBF7D0;
+  --color-warning: #B45309;
+  --color-warning-subtle: #FFFBEB;
+  --color-warning-border: #FDE68A;
+  --color-info: #1D4ED8;
+  --color-info-subtle: #EFF6FF;
+  --color-info-border: #BFDBFE;
 }
 
 .dark {
@@ -33,6 +42,15 @@
   --color-accent-subtle: #1E3A5F;
   --color-danger: #F87171;
   --color-danger-subtle: #3B1F1F;
+  --color-success: #86EFAC;
+  --color-success-subtle: #143221;
+  --color-success-border: #166534;
+  --color-warning: #FBBF24;
+  --color-warning-subtle: #3A2A12;
+  --color-warning-border: #92400E;
+  --color-info: #93C5FD;
+  --color-info-subtle: #172E4F;
+  --color-info-border: #1D4ED8;
 }
 
 @layer base {

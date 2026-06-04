@@ -283,7 +283,7 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
       </div>
 
       {/* Chat Sidebar (right) */}
-      <div className="w-[500px] flex flex-col h-full bg-[#fcfcfd]">
+      <div className="w-[500px] flex flex-col h-full bg-[var(--color-surface)]">
         {/* Header */}
         <div className="p-4 bg-[var(--color-surface)] border-b border-[var(--color-line-subtle)] flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -296,7 +296,7 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
             <button
               onClick={handleSummarize}
               disabled={summarizing || selectedPdfIds.length === 0}
-              className="flex items-center gap-1 text-[10px] font-bold text-amber-600 hover:text-amber-700 border border-amber-200 px-2 py-1 rounded-lg disabled:opacity-50"
+              className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-warning)] hover:opacity-80 border border-[var(--color-warning-border)] bg-[var(--color-warning-subtle)] px-2 py-1 rounded-lg disabled:opacity-50"
             >
               <Sparkles size={12} />
               {summarizing ? 'Summarizing...' : 'Summarize'}
@@ -421,7 +421,7 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
 
         {/* Input */}
         <div className="p-4 bg-[var(--color-surface)] border-t border-[var(--color-line-subtle)]">
-          <div className="flex items-center bg-[#F9FAFB] border border-[var(--color-line-subtle)] rounded-2xl p-1 focus-within:ring-2 focus-within:ring-blue-100 transition-all shadow-inner">
+          <div className="flex items-center bg-[var(--color-surface-hover)] border border-[var(--color-line-subtle)] rounded-2xl p-1 focus-within:ring-2 focus-within:ring-[var(--color-accent-subtle)] transition-all shadow-inner">
             <input
               type="text"
               value={input}
@@ -433,7 +433,7 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
                   : 'Ask a question about this PDF...'
               }
               disabled={loading || selectedPdfIds.length === 0}
-              className="flex-1 bg-transparent px-4 py-2 text-xs focus:outline-none placeholder:text-[var(--color-ink-secondary)] disabled:opacity-50"
+              className="flex-1 bg-transparent px-4 py-2 text-xs text-[var(--color-ink)] focus:outline-none placeholder:text-[var(--color-ink-secondary)] disabled:opacity-50"
             />
             <button
               onClick={handleSend}

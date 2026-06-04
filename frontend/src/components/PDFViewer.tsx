@@ -334,7 +334,7 @@ export default function PDFViewer({ url, targetPage, targetText, onExplainSelect
 
   return (
     <div className="relative h-full w-full bg-[#525659]">
-      <div className="pdf-zoom-toolbar absolute right-4 top-4 z-30 flex w-fit items-center overflow-hidden rounded-lg border border-black/10 bg-white text-xs font-semibold shadow-lg">
+      <div className="pdf-zoom-toolbar absolute right-4 top-4 z-30 flex w-fit items-center overflow-hidden rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] text-xs font-semibold shadow-lg">
         <button
           type="button"
           onClick={zoomOut}

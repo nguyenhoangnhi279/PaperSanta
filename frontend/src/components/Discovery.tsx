@@ -150,7 +150,7 @@ export default function Discovery() {
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="Search for papers by topic, title, or author..."
-                className="w-full pl-12 pr-4 py-3.5 border border-[var(--color-line)] rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-subtle)] focus:border-[var(--color-accent)] bg-[var(--color-surface-hover)]/50"
+                className="w-full pl-12 pr-4 py-3.5 border border-[var(--color-line)] rounded-2xl text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-subtle)] focus:border-[var(--color-accent)] bg-[var(--color-surface-hover)]/50"
               />
               <button
                 onClick={handleSearch}
@@ -169,21 +169,21 @@ export default function Discovery() {
                   placeholder="Year from"
                   value={yearFrom}
                   onChange={(e) => setYearFrom(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-24 px-2 py-1.5 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)] text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                  className="w-24 px-2 py-1.5 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)] text-xs text-[var(--color-ink)] placeholder:text-[var(--color-ink-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                 />
                 <input
                   type="number"
                   placeholder="Year to"
                   value={yearTo}
                   onChange={(e) => setYearTo(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-24 px-2 py-1.5 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)] text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                  className="w-24 px-2 py-1.5 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)] text-xs text-[var(--color-ink)] placeholder:text-[var(--color-ink-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                 />
                 <input
                   type="number"
                   placeholder="Min citations"
                   value={minCitations}
                   onChange={(e) => setMinCitations(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-28 px-2 py-1.5 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)] text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                  className="w-28 px-2 py-1.5 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)] text-xs text-[var(--color-ink)] placeholder:text-[var(--color-ink-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                 />
               </div>
             </div>
@@ -198,7 +198,7 @@ export default function Discovery() {
                 <select
                   value={selectedPdfId}
                   onChange={(e) => setSelectedPdfId(e.target.value)}
-                  className="w-full border border-[var(--color-line)] rounded-2xl text-sm px-4 py-3 bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-subtle)] focus:border-[var(--color-accent)]"
+                  className="w-full border border-[var(--color-line)] rounded-2xl text-sm text-[var(--color-ink)] px-4 py-3 bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-subtle)] focus:border-[var(--color-accent)]"
                 >
                   <option value="">Select a PDF...</option>
                   {papers.map((paper) => (
@@ -213,26 +213,26 @@ export default function Discovery() {
                     placeholder="Year from"
                     value={relatedYearFrom}
                     onChange={(e) => setRelatedYearFrom(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-24 px-2 py-1 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)]"
+                    className="w-24 px-2 py-1 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)] text-[var(--color-ink)] placeholder:text-[var(--color-ink-secondary)]"
                   />
                   <input
                     type="number"
                     placeholder="Year to"
                     value={relatedYearTo}
                     onChange={(e) => setRelatedYearTo(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-24 px-2 py-1 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)]"
+                    className="w-24 px-2 py-1 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)] text-[var(--color-ink)] placeholder:text-[var(--color-ink-secondary)]"
                   />
                   <input
                     type="number"
                     placeholder="Min citations"
                     value={relatedMinCitations}
                     onChange={(e) => setRelatedMinCitations(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-28 px-2 py-1 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)]"
+                    className="w-28 px-2 py-1 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)] text-[var(--color-ink)] placeholder:text-[var(--color-ink-secondary)]"
                   />
                   <select
                     value={relatedLimit}
                     onChange={(e) => setRelatedLimit(Number(e.target.value))}
-                    className="w-20 px-2 py-1 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)]"
+                    className="w-20 px-2 py-1 border border-[var(--color-line)] rounded-md bg-[var(--color-surface)] text-[var(--color-ink)]"
                   >
                     <option value={5}>5</option>
                     <option value={10}>10</option>

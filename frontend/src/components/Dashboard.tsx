@@ -212,7 +212,7 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
                   placeholder="Search for files..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-4 py-1.5 border border-[var(--color-line)] rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] w-48 bg-[var(--color-surface)]"
+                  className="pl-9 pr-4 py-1.5 border border-[var(--color-line)] rounded-lg text-xs text-[var(--color-ink)] placeholder:text-[var(--color-ink-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] w-48 bg-[var(--color-surface)]"
                 />
               </div>
               <div className="flex items-center gap-2 text-xs font-bold text-[var(--color-ink-secondary)] border border-[var(--color-line)] rounded-lg px-2 py-1.5 bg-[var(--color-surface)]">
@@ -221,7 +221,7 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="bg-transparent focus:outline-none cursor-pointer border-none p-0 ml-1"
+                  className="bg-transparent text-[var(--color-ink)] focus:outline-none cursor-pointer border-none p-0 ml-1"
                 >
                   <option value="newest">Newest</option>
                   <option value="oldest">Oldest</option>
@@ -258,9 +258,9 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
                           </p>
                           <span className={cn(
                             'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border',
-                            paper.status === 'indexed' && 'text-green-700 bg-green-50 border-green-200',
+                            paper.status === 'indexed' && 'text-[var(--color-success)] bg-[var(--color-success-subtle)] border-[var(--color-success-border)]',
                             paper.status === 'failed' && 'text-[var(--color-danger)] bg-[var(--color-danger-subtle)] border-[var(--color-danger-subtle)]',
-                            (paper.status === 'pending' || paper.status === 'extracted') && 'text-amber-700 bg-amber-50 border-amber-200',
+                            (paper.status === 'pending' || paper.status === 'extracted') && 'text-[var(--color-warning)] bg-[var(--color-warning-subtle)] border-[var(--color-warning-border)]',
                           )}>
                             {paper.status === 'pending' || paper.status === 'extracted' ? (
                               <span className="flex items-center gap-1">
@@ -324,7 +324,7 @@ export default function Dashboard({ papers, onPaperAdded, onSelectPaper, onPaper
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl space-y-6"
+              className="bg-[var(--color-surface)] border border-[var(--color-line)] rounded-2xl p-8 max-w-md w-full shadow-2xl space-y-6"
             >
               <div className="flex items-center gap-4 text-[var(--color-danger)]">
                 <div className="w-12 h-12 rounded-full bg-[var(--color-danger-subtle)] flex items-center justify-center">

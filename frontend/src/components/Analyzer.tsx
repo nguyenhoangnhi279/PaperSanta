@@ -286,9 +286,9 @@ export default function Analyzer({ papers, onOpenEvidence }: AnalyzerProps) {
                     <span className="truncate flex-1">{doc.original_name}</span>
                     <span className={cn(
                       'text-[10px] px-1.5 py-0.5 rounded-full',
-                      doc.status === 'indexed' ? 'bg-green-100 text-green-700' :
+                      doc.status === 'indexed' ? 'bg-[var(--color-success-subtle)] text-[var(--color-success)]' :
                       doc.status === 'failed' ? 'bg-[var(--color-danger-subtle)] text-[var(--color-danger)]' :
-                      'bg-amber-100 text-amber-700'
+                      'bg-[var(--color-warning-subtle)] text-[var(--color-warning)]'
                     )}>
                       {doc.status}
                     </span>
@@ -298,7 +298,7 @@ export default function Analyzer({ papers, onOpenEvidence }: AnalyzerProps) {
             </div>
           )}
           {selectedPdfIds.length < 2 && selectedPdfIds.length > 0 && (
-            <p className="text-[10px] text-amber-600 mt-1">Select at least 2 papers to run analysis.</p>
+            <p className="text-[10px] text-[var(--color-warning)] mt-1">Select at least 2 papers to run analysis.</p>
           )}
         </div>
 
@@ -312,7 +312,7 @@ export default function Analyzer({ papers, onOpenEvidence }: AnalyzerProps) {
             onChange={(e) => setCustomPrompt(e.target.value)}
             placeholder="Override the default prompt with your own question, e.g.: 'Focus only on the training datasets and compare their sizes...'"
             rows={2}
-            className="w-full border border-[var(--color-line)] rounded-xl p-3 text-xs focus:ring-2 focus:ring-[var(--color-accent-subtle)] focus:border-[var(--color-accent)] outline-none resize-none placeholder:text-[var(--color-ink-secondary)] bg-[var(--color-surface-hover)]/50"
+            className="w-full border border-[var(--color-line)] rounded-xl p-3 text-xs text-[var(--color-ink)] focus:ring-2 focus:ring-[var(--color-accent-subtle)] focus:border-[var(--color-accent)] outline-none resize-none placeholder:text-[var(--color-ink-secondary)] bg-[var(--color-surface-hover)]/50"
           />
         </div>
 

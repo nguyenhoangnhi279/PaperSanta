@@ -25,9 +25,9 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
         </div>
         <div className="p-4 space-y-3">
           {theme.consensus ? (
-            <div className="bg-green-50 border border-green-100 rounded-lg p-3">
-              <p className="text-[10px] font-bold text-green-700 uppercase tracking-wider mb-1">Consensus</p>
-              <p className="text-xs text-green-800">{theme.consensus}</p>
+            <div className="bg-[var(--color-success-subtle)] border border-[var(--color-success-border)] rounded-lg p-3">
+              <p className="text-[10px] font-bold text-[var(--color-success)] uppercase tracking-wider mb-1">Consensus</p>
+              <p className="text-xs text-[var(--color-ink)]">{theme.consensus}</p>
             </div>
           ) : (
             <div className="bg-[var(--color-surface-hover)] border border-[var(--color-line-subtle)] rounded-lg p-3">
@@ -36,22 +36,22 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
           )}
 
           {theme.differences && (
-            <div className="bg-orange-50 border border-orange-100 rounded-lg p-3">
-              <p className="text-[10px] font-bold text-orange-700 uppercase tracking-wider mb-1">Differences</p>
-              <p className="text-xs text-orange-800">{theme.differences}</p>
+            <div className="bg-[var(--color-warning-subtle)] border border-[var(--color-warning-border)] rounded-lg p-3">
+              <p className="text-[10px] font-bold text-[var(--color-warning)] uppercase tracking-wider mb-1">Differences</p>
+              <p className="text-xs text-[var(--color-ink)]">{theme.differences}</p>
             </div>
           )}
 
           {hasThemeConflicts && theme.conflicts.map((c: any, j: number) => (
-            <div key={j} className="bg-red-50 border border-red-100 rounded-lg p-3">
-              <p className="text-[10px] font-bold text-red-700 uppercase tracking-wider mb-1">Conflict</p>
-              <p className="text-xs font-semibold text-red-800">{c.issue}</p>
+            <div key={j} className="bg-[var(--color-danger-subtle)] border border-[var(--color-danger-subtle)] rounded-lg p-3">
+              <p className="text-[10px] font-bold text-[var(--color-danger)] uppercase tracking-wider mb-1">Conflict</p>
+              <p className="text-xs font-semibold text-[var(--color-ink)]">{c.issue}</p>
               <div className="mt-1.5 space-y-1">
-                <p className="text-[11px] text-red-700"><span className="font-bold">Paper A: </span>{c.paper_a_claim}</p>
-                <p className="text-[11px] text-red-700"><span className="font-bold">Paper B: </span>{c.paper_b_claim}</p>
+                <p className="text-[11px] text-[var(--color-ink)]"><span className="font-bold">Paper A: </span>{c.paper_a_claim}</p>
+                <p className="text-[11px] text-[var(--color-ink)]"><span className="font-bold">Paper B: </span>{c.paper_b_claim}</p>
               </div>
               {c.possible_reason && (
-                <p className="text-[11px] text-red-600 mt-1.5 italic">Possible reason: {c.possible_reason}</p>
+                <p className="text-[11px] text-[var(--color-danger)] mt-1.5 italic">Possible reason: {c.possible_reason}</p>
               )}
             </div>
           ))}
@@ -62,19 +62,19 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
 
   const renderLineageTrack = (track: any, i: number) => (
     <div key={i} className="border border-[var(--color-line)] rounded-xl overflow-hidden">
-      <div className="bg-blue-50 px-4 py-2.5 border-b border-blue-100 flex items-center gap-2">
-        <span className="text-xs font-bold text-blue-800">{track.from_paper || track.from}</span>
-        <span className="text-blue-400 text-xs">→</span>
-        <span className="text-xs font-bold text-blue-800">{track.to_paper || track.to}</span>
+      <div className="bg-[var(--color-info-subtle)] px-4 py-2.5 border-b border-[var(--color-info-border)] flex items-center gap-2">
+        <span className="text-xs font-bold text-[var(--color-info)]">{track.from_paper || track.from}</span>
+        <span className="text-[var(--color-info)] text-xs">→</span>
+        <span className="text-xs font-bold text-[var(--color-info)]">{track.to_paper || track.to}</span>
       </div>
       <div className="p-4 space-y-3">
         {Array.isArray(track.inherited_points) && track.inherited_points.length > 0 && (
           <div>
-            <p className="text-[10px] font-bold text-green-700 uppercase tracking-wider mb-1.5">Inherited</p>
+            <p className="text-[10px] font-bold text-[var(--color-success)] uppercase tracking-wider mb-1.5">Inherited</p>
             <ul className="space-y-1">
               {track.inherited_points.map((pt: string, j: number) => (
                 <li key={j} className="text-xs text-[var(--color-ink)] flex items-start gap-2">
-                  <span className="text-green-500 mt-0.5 shrink-0">→</span>
+                  <span className="text-[var(--color-success)] mt-0.5 shrink-0">→</span>
                   {pt}
                 </li>
               ))}
@@ -82,19 +82,19 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
           </div>
         )}
         {track.inherited_idea && !track.inherited_points && (
-          <div className="bg-green-50 border border-green-100 rounded-lg p-3">
-            <p className="text-[10px] font-bold text-green-700 uppercase tracking-wider mb-1">Inherited</p>
-            <p className="text-xs text-green-800">{track.inherited_idea}</p>
+          <div className="bg-[var(--color-success-subtle)] border border-[var(--color-success-border)] rounded-lg p-3">
+            <p className="text-[10px] font-bold text-[var(--color-success)] uppercase tracking-wider mb-1">Inherited</p>
+            <p className="text-xs text-[var(--color-ink)]">{track.inherited_idea}</p>
           </div>
         )}
 
         {Array.isArray(track.improvement_points) && track.improvement_points.length > 0 && (
           <div>
-            <p className="text-[10px] font-bold text-blue-700 uppercase tracking-wider mb-1.5">Improvements</p>
+            <p className="text-[10px] font-bold text-[var(--color-info)] uppercase tracking-wider mb-1.5">Improvements</p>
             <ul className="space-y-1">
               {track.improvement_points.map((pt: string, j: number) => (
                 <li key={j} className="text-xs text-[var(--color-ink)] flex items-start gap-2">
-                  <span className="text-blue-500 mt-0.5 shrink-0">+</span>
+                  <span className="text-[var(--color-info)] mt-0.5 shrink-0">+</span>
                   {pt}
                 </li>
               ))}
@@ -102,9 +102,9 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
           </div>
         )}
         {track.improvement && !track.improvement_points && (
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-            <p className="text-[10px] font-bold text-blue-700 uppercase tracking-wider mb-1">Improvement</p>
-            <p className="text-xs text-blue-800">{track.improvement}</p>
+          <div className="bg-[var(--color-info-subtle)] border border-[var(--color-info-border)] rounded-lg p-3">
+            <p className="text-[10px] font-bold text-[var(--color-info)] uppercase tracking-wider mb-1">Improvement</p>
+            <p className="text-xs text-[var(--color-ink)]">{track.improvement}</p>
           </div>
         )}
       </div>
@@ -132,16 +132,16 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
       {/* Fallback: old consensus */}
       {hasConsensus && (
         <div>
-          <h5 className="text-xs font-bold text-green-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+          <h5 className="text-xs font-bold text-[var(--color-success)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-success)] inline-block" />
             Consensus
           </h5>
           <div className="space-y-2">
             {result.consensus.map((c: any, i: number) => (
-              <div key={i} className="bg-green-50 border border-green-100 rounded-lg p-3">
-                <p className="text-xs font-semibold text-green-800">{c.point || c.technique}</p>
-                {c.detail && <p className="text-xs text-green-700 mt-1">{c.detail}</p>}
-                {c.papers && <p className="text-[10px] text-green-500 mt-1">Papers: {c.papers.join(', ')}</p>}
+              <div key={i} className="bg-[var(--color-success-subtle)] border border-[var(--color-success-border)] rounded-lg p-3">
+                <p className="text-xs font-semibold text-[var(--color-ink)]">{c.point || c.technique}</p>
+                {c.detail && <p className="text-xs text-[var(--color-ink-secondary)] mt-1">{c.detail}</p>}
+                {c.papers && <p className="text-[10px] text-[var(--color-success)] mt-1">Papers: {c.papers.join(', ')}</p>}
               </div>
             ))}
           </div>
@@ -151,17 +151,17 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
       {/* Fallback: old differences */}
       {hasDifferences && (
         <div>
-          <h5 className="text-xs font-bold text-orange-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />
+          <h5 className="text-xs font-bold text-[var(--color-warning)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-warning)] inline-block" />
             Differences
           </h5>
           <div className="space-y-2">
             {result.differences.map((d: any, i: number) => (
-              <div key={i} className="bg-orange-50 border border-orange-100 rounded-lg p-3">
-                <p className="text-xs font-semibold text-orange-800">{d.aspect || d.technique}</p>
-                {d.paper_a && <p className="text-[11px] text-orange-700 mt-1">Paper A: {d.paper_a}</p>}
-                {d.paper_b && <p className="text-[11px] text-orange-700">Paper B: {d.paper_b}</p>}
-                {d.implication && <p className="text-[10px] text-orange-600 mt-1 italic">Implication: {d.implication}</p>}
+              <div key={i} className="bg-[var(--color-warning-subtle)] border border-[var(--color-warning-border)] rounded-lg p-3">
+                <p className="text-xs font-semibold text-[var(--color-ink)]">{d.aspect || d.technique}</p>
+                {d.paper_a && <p className="text-[11px] text-[var(--color-ink-secondary)] mt-1">Paper A: {d.paper_a}</p>}
+                {d.paper_b && <p className="text-[11px] text-[var(--color-ink-secondary)]">Paper B: {d.paper_b}</p>}
+                {d.implication && <p className="text-[10px] text-[var(--color-warning)] mt-1 italic">Implication: {d.implication}</p>}
               </div>
             ))}
           </div>
@@ -171,19 +171,19 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
       {/* Fallback: old conflicts */}
       {hasConflicts && (
         <div>
-          <h5 className="text-xs font-bold text-red-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+          <h5 className="text-xs font-bold text-[var(--color-danger)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-danger)] inline-block" />
             Conflicts
           </h5>
           <div className="space-y-2">
             {result.conflicts.map((c: any, i: number) => (
-              <div key={i} className="bg-red-50 border border-red-100 rounded-lg p-3">
-                <p className="text-xs font-semibold text-red-800">{c.issue}</p>
+              <div key={i} className="bg-[var(--color-danger-subtle)] border border-[var(--color-danger-subtle)] rounded-lg p-3">
+                <p className="text-xs font-semibold text-[var(--color-ink)]">{c.issue}</p>
                 <div className="mt-1.5 space-y-1">
-                  <p className="text-[11px] text-red-700"><span className="font-bold">Paper A: </span>{c.paper_a_claim}</p>
-                  <p className="text-[11px] text-red-700"><span className="font-bold">Paper B: </span>{c.paper_b_claim}</p>
+                  <p className="text-[11px] text-[var(--color-ink-secondary)]"><span className="font-bold">Paper A: </span>{c.paper_a_claim}</p>
+                  <p className="text-[11px] text-[var(--color-ink-secondary)]"><span className="font-bold">Paper B: </span>{c.paper_b_claim}</p>
                 </div>
-                {c.possible_reason && <p className="text-[11px] text-red-600 mt-1.5 italic">Possible reason: {c.possible_reason}</p>}
+                {c.possible_reason && <p className="text-[11px] text-[var(--color-danger)] mt-1.5 italic">Possible reason: {c.possible_reason}</p>}
               </div>
             ))}
           </div>
@@ -193,23 +193,23 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
       {/* Fallback: old lineage */}
       {hasLineage && (
         <div>
-          <h5 className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+          <h5 className="text-xs font-bold text-[var(--color-info)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-info)] inline-block" />
             Lineage / Inheritance
           </h5>
           <div className="space-y-3">
             {result.lineage.map((l: any, i: number) => (
-              <div key={i} className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+              <div key={i} className="bg-[var(--color-info-subtle)] border border-[var(--color-info-border)] rounded-lg p-3">
                 <div className="flex items-start gap-2">
-                  <div className="text-xs font-bold text-blue-800 min-w-0 flex-1">
-                    <span className="text-blue-500">← </span>{l.from}
+                  <div className="text-xs font-bold text-[var(--color-info)] min-w-0 flex-1">
+                    <span className="text-[var(--color-info)]">← </span>{l.from}
                   </div>
-                  <div className="text-xs font-bold text-blue-800 min-w-0 flex-1 text-right">
-                    {l.to}<span className="text-blue-500"> →</span>
+                  <div className="text-xs font-bold text-[var(--color-info)] min-w-0 flex-1 text-right">
+                    {l.to}<span className="text-[var(--color-info)]"> →</span>
                   </div>
                 </div>
-                {l.inherited_idea && <p className="text-[11px] text-blue-700 mt-1.5"><span className="font-bold">Inherited: </span>{l.inherited_idea}</p>}
-                {l.improvement && <p className="text-[11px] text-blue-700"><span className="font-bold">Improvement: </span>{l.improvement}</p>}
+                {l.inherited_idea && <p className="text-[11px] text-[var(--color-ink-secondary)] mt-1.5"><span className="font-bold">Inherited: </span>{l.inherited_idea}</p>}
+                {l.improvement && <p className="text-[11px] text-[var(--color-ink-secondary)]"><span className="font-bold">Improvement: </span>{l.improvement}</p>}
               </div>
             ))}
           </div>
@@ -217,9 +217,9 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
       )}
 
       {result.recommendation && (
-        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-          <p className="text-xs font-bold text-blue-800">Recommendation</p>
-          <p className="text-xs text-blue-700 mt-1">{result.recommendation}</p>
+        <div className="bg-[var(--color-info-subtle)] border border-[var(--color-info-border)] rounded-lg p-3">
+          <p className="text-xs font-bold text-[var(--color-info)]">Recommendation</p>
+          <p className="text-xs text-[var(--color-ink)] mt-1">{result.recommendation}</p>
         </div>
       )}
 
@@ -239,11 +239,11 @@ export default function AnalyzerSynthesisResult({ result }: AnalyzerSynthesisRes
 
       {result.agreements && Array.isArray(result.agreements) && result.agreements.length > 0 && (
         <div>
-          <h5 className="text-xs font-bold text-green-700 uppercase tracking-wider mb-2">Agreements</h5>
+          <h5 className="text-xs font-bold text-[var(--color-success)] uppercase tracking-wider mb-2">Agreements</h5>
           <ul className="space-y-1">
             {result.agreements.map((a: string, i: number) => (
               <li key={i} className="text-xs text-[var(--color-ink)] flex items-start gap-2">
-                <span className="text-green-500 mt-0.5">✓</span>
+                <span className="text-[var(--color-success)] mt-0.5">✓</span>
                 {a}
               </li>
             ))}

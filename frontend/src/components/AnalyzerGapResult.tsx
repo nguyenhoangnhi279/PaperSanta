@@ -13,10 +13,10 @@ export default function AnalyzerGapResult({ result }: AnalyzerGapResultProps) {
 
   const severityColor = (s: string) => {
     switch ((s || '').toLowerCase()) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-[var(--color-surface-hover)] text-[var(--color-ink)] border-gray-200';
+      case 'high': return 'bg-[var(--color-danger-subtle)] text-[var(--color-danger)] border-[var(--color-danger-subtle)]';
+      case 'medium': return 'bg-[var(--color-warning-subtle)] text-[var(--color-warning)] border-[var(--color-warning-border)]';
+      case 'low': return 'bg-[var(--color-success-subtle)] text-[var(--color-success)] border-[var(--color-success-border)]';
+      default: return 'bg-[var(--color-surface-hover)] text-[var(--color-ink)] border-[var(--color-line)]';
     }
   };
 
@@ -26,8 +26,8 @@ export default function AnalyzerGapResult({ result }: AnalyzerGapResultProps) {
 
       {gaps.length > 0 && (
         <div>
-          <h5 className="text-xs font-bold text-red-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+          <h5 className="text-xs font-bold text-[var(--color-danger)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-danger)] inline-block" />
             Gaps Found ({gaps.length})
           </h5>
           <div className="space-y-3">
@@ -36,7 +36,7 @@ export default function AnalyzerGapResult({ result }: AnalyzerGapResultProps) {
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-xs font-semibold flex-1">{g.gap}</p>
                   {g.severity && (
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-white/60 shrink-0">
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--color-surface)]/80 border border-[var(--color-line-subtle)] shrink-0">
                       {g.severity}
                     </span>
                   )}
@@ -50,14 +50,14 @@ export default function AnalyzerGapResult({ result }: AnalyzerGapResultProps) {
 
       {Array.isArray(result.opportunities) && result.opportunities.length > 0 && (
         <div>
-          <h5 className="text-xs font-bold text-green-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+          <h5 className="text-xs font-bold text-[var(--color-success)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-success)] inline-block" />
             Opportunities
           </h5>
           <ul className="space-y-1.5">
             {result.opportunities.map((o: string, i: number) => (
               <li key={i} className="text-xs text-[var(--color-ink)] flex items-start gap-2">
-                <span className="text-green-500 font-bold mt-0.5">→</span>
+                <span className="text-[var(--color-success)] font-bold mt-0.5">→</span>
                 {o}
               </li>
             ))}
@@ -67,14 +67,14 @@ export default function AnalyzerGapResult({ result }: AnalyzerGapResultProps) {
 
       {Array.isArray(result.recommendations) && result.recommendations.length > 0 && (
         <div>
-          <h5 className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+          <h5 className="text-xs font-bold text-[var(--color-info)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-info)] inline-block" />
             Recommendations
           </h5>
           <ul className="space-y-1.5">
             {result.recommendations.map((r: string, i: number) => (
               <li key={i} className="text-xs text-[var(--color-ink)] flex items-start gap-2">
-                <span className="text-blue-500 font-bold mt-0.5">💡</span>
+                <span className="text-[var(--color-info)] font-bold mt-0.5">💡</span>
                 {r}
               </li>
             ))}
