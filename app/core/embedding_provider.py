@@ -7,6 +7,7 @@ Switch providers/models from config without changing indexing or retrieval code.
 from __future__ import annotations
 
 import logging
+import time
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -169,3 +170,25 @@ class EmbeddingProvider:
     @classmethod
     def embed_text(cls, text: str) -> list[float]:
         return cls.embed_query(text)
+
+    @classmethod
+    def warmup(cls, text: str | None = None) -> dict:
+        warmup_text = text or settings.EMBEDDING_WARMUP_TEXT
+        start = time.perf_counter()
+        backend = cls.get_backend()
+        vector = backend.embed_query(warmup_text)
+        elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
+        result = {
+            "provider": settings.EMBEDDING_PROVIDER,
+            "model": backend.model_name,
+            "dimension": len(vector),
+            "elapsed_ms": elapsed_ms,
+        }
+        logger.info(
+            "Embedding warmup completed: provider=%s model=%s dim=%s elapsed=%sms",
+            result["provider"],
+            result["model"],
+            result["dimension"],
+            result["elapsed_ms"],
+        )
+        return result

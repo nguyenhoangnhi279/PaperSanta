@@ -13,6 +13,7 @@ import type { PDFDocument, AnalysisType } from '../types';
 
 interface AnalyzerProps {
   papers: PDFDocument[];
+  onOpenEvidence?: (pdfId: string, pageNumber?: number | null, targetText?: string | null) => void;
 }
 
 type AnalyzerMode = 'benchmark' | 'synthesis' | 'gap';
@@ -64,7 +65,7 @@ const modes: ModeConfig[] = [
 
 const allTypes = modes.flatMap((m) => m.types);
 
-export default function Analyzer({ papers }: AnalyzerProps) {
+export default function Analyzer({ papers, onOpenEvidence }: AnalyzerProps) {
   const { session: authSession } = useAuth();
   const token = authSession?.access_token;
 
@@ -138,8 +139,12 @@ export default function Analyzer({ papers }: AnalyzerProps) {
 
   const currentModeTypes = modes.find((m) => m.id === mode)?.types || [];
   const selectedDocs = papers.filter((d) => selectedPdfIds.includes(d.id));
+  const indexedPaperIds = new Set(papers.map((d) => d.id));
 
   const getTypeName = (type: string) => allTypes.find((t) => t.id === type)?.label || type;
+  const evidenceSources = Array.isArray(result?.result_json?._evidence_sources)
+    ? result.result_json._evidence_sources
+    : [];
 
   return (
     <div className="flex-1 bg-[var(--color-surface)] overflow-y-auto">
@@ -375,6 +380,51 @@ export default function Analyzer({ papers }: AnalyzerProps) {
                   {mode === 'benchmark' && <AnalyzerBenchmarkTable result={result.result_json} />}
                   {mode === 'synthesis' && <AnalyzerSynthesisResult result={result.result_json} />}
                   {mode === 'gap' && <AnalyzerGapResult result={result.result_json} />}
+                  {evidenceSources.length > 0 && (
+                    <div className="mt-5 border-t border-[var(--color-line-subtle)] pt-4">
+                      <p className="text-[10px] font-bold text-[var(--color-ink-secondary)] uppercase tracking-wider mb-2">
+                        Evidence Used
+                      </p>
+                      <div className="grid gap-2">
+                        {evidenceSources.slice(0, 8).map((source: any) => {
+                          const canOpen = Boolean(onOpenEvidence && source.pdf_id && indexedPaperIds.has(source.pdf_id));
+                          return (
+                          <button
+                            key={source.evidence_id}
+                            type="button"
+                            disabled={!canOpen}
+                            onClick={() => {
+                              if (canOpen) onOpenEvidence?.(source.pdf_id, source.page_number || null, source.preview || null);
+                            }}
+                            className={cn(
+                              'rounded-lg border border-[var(--color-line-subtle)] bg-[var(--color-surface-hover)]/50 p-3 text-left transition-colors',
+                              canOpen ? 'hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-subtle)]/40 cursor-pointer' : 'cursor-default'
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-xs font-bold text-[var(--color-ink)] truncate">
+                                {source.evidence_id} · {source.pdf_name}
+                              </p>
+                              <span className="text-[10px] text-[var(--color-ink-secondary)] shrink-0">
+                                page {source.page_number || 'unknown'}
+                              </span>
+                            </div>
+                            {Array.isArray(source.section_path) && source.section_path.length > 0 && (
+                              <p className="text-[10px] text-[var(--color-ink-secondary)] mt-1 truncate">
+                                {source.section_path.join(' > ')}
+                              </p>
+                            )}
+                            {source.preview && (
+                              <p className="text-[11px] text-[var(--color-ink-secondary)] mt-1 line-clamp-2">
+                                {source.preview}
+                              </p>
+                            )}
+                          </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>

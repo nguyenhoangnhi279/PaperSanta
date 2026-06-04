@@ -17,13 +17,16 @@ GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 interface PDFViewerProps {
   url: string;
   targetPage?: number | null;
-  onExplainSelection?: (text: string) => void;
+  targetText?: string | null;
+  onExplainSelection?: (payload: { text: string; pageNumber?: number | null; surroundingText?: string | null }) => void;
 }
 
 interface SelectionMenu {
   text: string;
   x: number;
   y: number;
+  pageNumber?: number | null;
+  surroundingText?: string | null;
 }
 
 interface PDFPageProps {
@@ -140,7 +143,28 @@ function PDFPage({ pageNumber, pdfDocument, containerWidth, zoom, registerPageRe
   );
 }
 
-export default function PDFViewer({ url, targetPage, onExplainSelection }: PDFViewerProps) {
+function normalizeForHighlight(text: string) {
+  return text
+    .replace(/\[Section:[^\]]+\]/gi, ' ')
+    .replace(/[^\p{L}\p{N}\s.-]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function highlightTokens(text: string) {
+  const stop = new Set([
+    'the', 'and', 'for', 'that', 'with', 'this', 'from', 'into', 'paper', 'section',
+    'model', 'method', 'results', 'table', 'figure',
+  ]);
+  const tokens = normalizeForHighlight(text)
+    .split(/\s+/)
+    .map((token) => token.replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, ''))
+    .filter((token) => token.length >= 4 && !stop.has(token));
+  return Array.from(new Set(tokens)).slice(0, 18);
+}
+
+export default function PDFViewer({ url, targetPage, targetText, onExplainSelection }: PDFViewerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<Map<number, HTMLDivElement>>(new Map());
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
@@ -195,8 +219,31 @@ export default function PDFViewer({ url, targetPage, onExplainSelection }: PDFVi
 
   useEffect(() => {
     if (!targetPage) return;
-    pagesRef.current.get(targetPage)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [targetPage, pageCount]);
+    const pageElement = pagesRef.current.get(targetPage);
+    pageElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    document.querySelectorAll('.pdf-citation-highlight').forEach((element) => {
+      element.classList.remove('pdf-citation-highlight');
+    });
+
+    if (!pageElement || !targetText) return;
+    const tokens = highlightTokens(targetText);
+    if (tokens.length === 0) return;
+
+    window.setTimeout(() => {
+      const spans = Array.from(pageElement.querySelectorAll<HTMLSpanElement>('.pdf-page-text-layer span'));
+      let matched = 0;
+      for (const span of spans) {
+        const text = normalizeForHighlight(span.textContent || '');
+        if (!text) continue;
+        if (tokens.some((token) => text.includes(token) || token.includes(text))) {
+          span.classList.add('pdf-citation-highlight');
+          matched += 1;
+        }
+        if (matched >= 80) break;
+      }
+    }, 250);
+  }, [targetPage, targetText, pageCount]);
 
   const registerPageRef = useCallback((pageNumber: number, element: HTMLDivElement | null) => {
     if (element) {
@@ -244,12 +291,29 @@ export default function PDFViewer({ url, targetPage, onExplainSelection }: PDFVi
       wrapper.scrollTop + 16,
     );
 
-    setSelectionMenu({ text: selectedText, x, y });
+    const pageElement = (selection.anchorNode instanceof Element
+      ? selection.anchorNode
+      : selection.anchorNode?.parentElement
+    )?.closest<HTMLElement>('.pdf-page');
+    const pageNumber = pageElement?.dataset.pageNumber
+      ? Number(pageElement.dataset.pageNumber)
+      : null;
+    const pageText = pageElement?.textContent || '';
+    const selectedOffset = pageText.indexOf(selectedText);
+    const surroundingText = selectedOffset >= 0
+      ? pageText.slice(Math.max(0, selectedOffset - 500), selectedOffset + selectedText.length + 500)
+      : pageText.slice(0, 1200);
+
+    setSelectionMenu({ text: selectedText, x, y, pageNumber, surroundingText });
   }, []);
 
   const handleExplain = () => {
     if (!selectionMenu) return;
-    onExplainSelection?.(selectionMenu.text);
+    onExplainSelection?.({
+      text: selectionMenu.text,
+      pageNumber: selectionMenu.pageNumber,
+      surroundingText: selectionMenu.surroundingText,
+    });
     clearSelection();
   };
 

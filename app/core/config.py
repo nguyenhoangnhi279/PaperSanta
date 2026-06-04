@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     EMBEDDING_DOCUMENT_PREFIX: str = ""
     OPENAI_API_KEY: str = ""
     OPENAI_EMBEDDING_DIMENSIONS: int | None = None
+    EMBEDDING_PRELOAD_ON_STARTUP: bool = True
+    EMBEDDING_PRELOAD_FAIL_FAST: bool = False
+    EMBEDDING_WARMUP_TEXT: str = "PaperSanta embedding warmup"
     CHUNK_PARENT_SIZE_CHARS: int = 2800
     CHUNK_CHILD_SIZE_CHARS: int = 450
     CHUNK_CHILD_OVERLAP_CHARS: int = 120

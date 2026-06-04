@@ -3,6 +3,7 @@ main.py — FastAPI app entry point
 """
 
 import logging
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -13,6 +14,7 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.core.database import init_db
+from app.core.embedding_provider import EmbeddingProvider
 from app.api.pdf_router import router as pdf_router
 from app.api.rag_router import router as rag_router
 from app.api.analyze_router import router as analyze_router
@@ -34,6 +36,22 @@ async def lifespan(app: FastAPI):
     await init_db()
 
     logger.info("Database initialized successfully.")
+    if settings.EMBEDDING_PRELOAD_ON_STARTUP:
+        try:
+            warmup = await asyncio.to_thread(EmbeddingProvider.warmup)
+            app.state.embedding_warmup = warmup
+        except Exception as exc:
+            app.state.embedding_warmup = {
+                "status": "failed",
+                "error": str(exc),
+                "provider": settings.EMBEDDING_PROVIDER,
+                "model": settings.EMBEDDING_MODEL_NAME,
+            }
+            logger.exception("Embedding preload failed.")
+            if settings.EMBEDDING_PRELOAD_FAIL_FAST:
+                raise
+    else:
+        app.state.embedding_warmup = {"status": "disabled"}
     yield
     logger.info("Shutting down.")
 
@@ -78,4 +96,8 @@ if frontend_dist.exists():
 # Health check
 @app.get("/health", tags=["System"])
 async def health():
-    return {"status": "ok", "app": settings.APP_NAME}
+    return {
+        "status": "ok",
+        "app": settings.APP_NAME,
+        "embedding": getattr(app.state, "embedding_warmup", None),
+    }

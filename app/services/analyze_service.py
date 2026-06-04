@@ -13,17 +13,126 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.core.deepseek_provider import DeepSeekProvider
 from app.models.pdf_document import PDFDocument
+from app.models.embedding import PDFChunk
 from app.models.analysis import MultiAnalysis, AnalysisDocument
 from app.services.rag_service import RAGService
 
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT_PREFIX = (
-    "Bạn là chuyên gia phân tích tài liệu khoa học (Computer Science, Machine Learning).\n"
-    "NHIỆM VỤ: Phân tích các đoạn trích từ bài báo khoa học và xuất kết quả DƯỚI DẠNG JSON.\n"
-    "TUYỆT ĐỐI KHÔNG chào hỏi, không giải thích dài dòng. Chỉ xuất JSON hợp lệ.\n"
-    "Không dùng markdown code blocks trong output. Chỉ JSON thuần túy."
+    "You are PaperSanta Analyzer, a CS/ML paper analysis assistant. "
+    "Analyze only the retrieved paper excerpts and return valid JSON only. "
+    "Do not greet, do not use markdown code fences, and do not add prose outside JSON. "
+    "If a field is not supported by the excerpts, use null instead of guessing. "
+    "Every non-null claim should be grounded in the provided evidence references when possible."
 )
+
+
+ANALYSIS_RETRIEVAL_QUERIES: dict[str, list[str]] = {
+    "benchmark_matrix": [
+        "model architecture backbone method",
+        "accuracy metrics mAP AP F1 benchmark results dataset",
+        "speed FPS latency real-time inference",
+    ],
+    "hyperparameter_compare": [
+        "training configuration optimizer learning rate batch size epochs",
+        "loss function augmentation schedule implementation details",
+    ],
+    "resource_compare": [
+        "parameters model size FLOPs memory VRAM computational cost",
+        "inference time latency FPS deployment efficiency",
+    ],
+    "methodology_mapping": [
+        "method architecture pipeline input representation objective",
+        "backbone encoder decoder loss function module design",
+        "algorithm steps inference training procedure",
+    ],
+    "eval_conflicts": [
+        "experimental results benchmark metrics comparison",
+        "evaluation setup dataset metric mismatch limitations",
+        "ablation study discussion findings",
+    ],
+    "paradigm_evolution": [
+        "related work previous methods motivation limitation",
+        "improvement over prior work contribution novelty",
+        "method evolution inheritance extension",
+    ],
+    "dataset_bias_gap": [
+        "dataset collection bias demographic limitation ethical",
+        "limitations future work dataset coverage failure cases",
+    ],
+    "domain_gap": [
+        "application domain limitation future work low-resource language",
+        "generalization domain shift deployment scenario",
+    ],
+    "performance_gap": [
+        "real-time latency efficiency deployment scalability limitation",
+        "speed accuracy tradeoff runtime bottleneck future work",
+    ],
+    "cross_domain_idea": [
+        "core method mechanism architecture algorithm representation",
+        "transferable idea cross-domain application generality",
+    ],
+}
+
+
+ANALYSIS_SCHEMA_INSTRUCTIONS: dict[str, str] = {
+    "benchmark_matrix": (
+        'Return {"title": string, "table": ['
+        '{"Paper": string, "Model": string|null, "Metric": string|null, "Score": string|null, '
+        '"Dataset": string|null, "Backbone": string|null, "Speed": string|null, "Evidence": [string]}'
+        '], "notes": string|null}.'
+    ),
+    "hyperparameter_compare": (
+        'Return {"title": string, "table": ['
+        '{"Paper": string, "Learning Rate": string|null, "Batch Size": string|null, '
+        '"Optimizer": string|null, "Loss Function": string|null, "Epochs": string|null, "Evidence": [string]}'
+        '], "notes": string|null}.'
+    ),
+    "resource_compare": (
+        'Return {"title": string, "table": ['
+        '{"Paper": string, "Parameters": string|null, "FLOPs": string|null, '
+        '"Memory/VRAM": string|null, "Inference Time/FPS": string|null, "Evidence": [string]}'
+        '], "notes": string|null}.'
+    ),
+    "methodology_mapping": (
+        'Return {"title": string, "comparison_themes": ['
+        '{"theme_name": string, "consensus": string|null, "differences": string|null, "Evidence": [string]}'
+        '], "recommendation": string|null}.'
+    ),
+    "eval_conflicts": (
+        'Return {"title": string, "comparison_themes": ['
+        '{"theme_name": string, "consensus": string|null, "conflicts": ['
+        '{"issue": string, "paper_a_claim": string|null, "paper_b_claim": string|null, '
+        '"possible_reason": string|null, "Evidence": [string]}]}], "overall_assessment": string|null}.'
+    ),
+    "paradigm_evolution": (
+        'Return {"title": string, "lineage_tracks": ['
+        '{"from_paper": string|null, "to_paper": string|null, '
+        '"inherited_points": [string], "improvement_points": [string], "Evidence": [string]}'
+        '], "summary": string|null}.'
+    ),
+    "dataset_bias_gap": (
+        'Return {"title": string, "gaps_found": ['
+        '{"gap": string, "evidence": string|null, "severity": "low"|"medium"|"high", "Evidence": [string]}'
+        '], "opportunities": [string], "recommendations": [string]}.'
+    ),
+    "domain_gap": (
+        'Return {"title": string, "gaps_found": ['
+        '{"gap": string, "evidence": string|null, "severity": "low"|"medium"|"high", "Evidence": [string]}'
+        '], "opportunities": [string], "recommendations": [string]}.'
+    ),
+    "performance_gap": (
+        'Return {"title": string, "gaps_found": ['
+        '{"gap": string, "evidence": string|null, "severity": "low"|"medium"|"high", "Evidence": [string]}'
+        '], "opportunities": [string], "recommendations": [string]}.'
+    ),
+    "cross_domain_idea": (
+        'Return {"title": string, "gaps_found": ['
+        '{"gap": string, "evidence": string|null, "severity": "low"|"medium"|"high", "Evidence": [string]}'
+        '], "opportunities": [string], "recommendations": [string]}.'
+    ),
+}
 
 ANALYSIS_CONFIG = {
     "benchmark_matrix": {
@@ -293,6 +402,157 @@ ANALYSIS_CONFIG = {
 }
 
 
+def _clean_llm_json(text: str) -> str:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[-1]
+        cleaned = cleaned.rsplit("```", 1)[0].strip()
+    if cleaned.lower().startswith("json"):
+        cleaned = cleaned[4:].strip()
+    return cleaned
+
+
+def _parse_json_answer(answer: str) -> dict:
+    cleaned = _clean_llm_json(answer)
+    try:
+        parsed = json.loads(cleaned)
+        if isinstance(parsed, dict):
+            return parsed
+        return {"items": parsed}
+    except Exception as exc:
+        logger.warning("Failed to parse Analyzer JSON: %s", exc)
+        return {"raw_output": answer, "parse_error": str(exc)}
+
+
+def _analysis_queries(analysis_type: str, fallback_query: str) -> list[str]:
+    queries = ANALYSIS_RETRIEVAL_QUERIES.get(analysis_type) or [fallback_query]
+    clean_queries: list[str] = []
+    seen: set[str] = set()
+    for query in [fallback_query, *queries]:
+        normalized = query.strip()
+        key = normalized.lower()
+        if normalized and key not in seen:
+            seen.add(key)
+            clean_queries.append(normalized)
+    return clean_queries
+
+
+async def _retrieve_analysis_context(
+    db: AsyncSession,
+    user_id: str,
+    pdf_uuids: list[UUID],
+    analysis_type: str,
+    fallback_query: str,
+    top_k: int,
+) -> list[dict]:
+    fused: dict[UUID, dict] = {}
+    queries = _analysis_queries(analysis_type, fallback_query)
+    per_query_top_k = max(6, min(12, top_k))
+
+    for query in queries:
+        results = await RAGService.similarity_search(
+            db,
+            user_id,
+            query,
+            pdf_ids=pdf_uuids,
+            top_k=per_query_top_k,
+        )
+        for rank, result in enumerate(results, 1):
+            chunk = result["chunk"]
+            if chunk.id not in fused:
+                fused[chunk.id] = {
+                    **result,
+                    "analysis_queries": [],
+                    "analysis_rank_score": 0.0,
+                }
+            fused_item = fused[chunk.id]
+            fused_item["analysis_queries"].append(query)
+            fused_item["analysis_rank_score"] += 1.0 / (rank + 2)
+
+    sorted_results = sorted(
+        fused.values(),
+        key=lambda item: (
+            item["analysis_rank_score"],
+            item.get("score") or 0.0,
+        ),
+        reverse=True,
+    )
+    return sorted_results[:top_k]
+
+
+def _build_analysis_context(retrieved: list[dict]) -> tuple[str, dict[str, str], list[dict], int]:
+    paper_groups: dict[str, list[dict]] = defaultdict(list)
+    pdf_name_map: dict[str, str] = {}
+    for result in retrieved:
+        pid = str(result["pdf_id"])
+        paper_groups[pid].append(result)
+        pdf_name_map[pid] = result.get("pdf_name", "Unknown")
+
+    context_parts: list[str] = []
+    evidence_map: dict[str, str] = {}
+    evidence_sources: list[dict] = []
+
+    for paper_idx, (pid, chunks) in enumerate(paper_groups.items(), 1):
+        paper_label = pdf_name_map.get(pid, f"Paper {paper_idx}")
+        for evidence_idx, chunk_data in enumerate(chunks, 1):
+            chunk: PDFChunk = chunk_data["chunk"]
+            evidence_id = f"P{paper_idx}-E{evidence_idx}"
+            context_text = chunk_data.get("context_text", chunk.chunk_text)
+            page = chunk.page_number or "unknown"
+            section = " > ".join(chunk.section_path or [])
+            header = f"[{evidence_id}] Paper {paper_idx}: {paper_label}, page {page}"
+            if section:
+                header = f"{header}, section: {section}"
+            context_parts.append(f"{header}\n{context_text}\n")
+            evidence_map[evidence_id] = header
+            evidence_sources.append({
+                "evidence_id": evidence_id,
+                "pdf_id": pid,
+                "pdf_name": paper_label,
+                "page_number": chunk.page_number,
+                "chunk_id": str(chunk.id),
+                "block_id": str(chunk.block_id) if chunk.block_id else None,
+                "section_path": chunk.section_path,
+                "source_block_type": chunk.source_block_type,
+                "retrieval_sources": chunk_data.get("retrieval_sources", []),
+                "analysis_queries": chunk_data.get("analysis_queries", []),
+                "preview": chunk.chunk_text[:240],
+            })
+
+    return "\n---\n".join(context_parts), evidence_map, evidence_sources, len(paper_groups)
+
+
+def _build_analysis_prompt(
+    analysis_type: str,
+    cfg: dict,
+    num_papers: int,
+    context: str,
+    custom_prompt: str | None,
+) -> str:
+    schema = ANALYSIS_SCHEMA_INSTRUCTIONS.get(analysis_type)
+    if not schema:
+        schema = 'Return {"title": string, "notes": string|null}.'
+
+    custom_instruction = ""
+    if custom_prompt:
+        custom_instruction = f"\nUser focus: {custom_prompt.strip()}\n"
+
+    return (
+        f"Analysis type: {cfg.get('label', analysis_type)}\n"
+        f"Number of papers with retrieved evidence: {num_papers}\n\n"
+        f"Evidence excerpts:\n{context}\n\n"
+        "Instructions:\n"
+        "- Use only the evidence excerpts above.\n"
+        "- Keep paper-specific claims separated by paper.\n"
+        "- Do not fabricate values, metrics, datasets, model names, or limitations.\n"
+        "- If a requested field is not present in the evidence, use null.\n"
+        "- Add Evidence arrays with evidence IDs such as P1-E1 or P2-E3 for important claims.\n"
+        "- JSON must be valid and must not contain markdown fences.\n"
+        f"{custom_instruction}\n"
+        f"Required JSON schema: {schema}"
+    )
+
+
 class AnalyzeService:
 
     @staticmethod
@@ -309,10 +569,16 @@ class AnalyzeService:
 
         logger.info(f"run_analysis: type={analysis_type}, pdf_ids={pdf_ids}")
 
-        # 1. Retrieve chunks
+        # 1. Retrieve chunks from multiple analysis-specific angles.
         pdf_uuids = [UUID(pid) for pid in pdf_ids]
-        retrieved = await RAGService.similarity_search(
-            db, user_id, cfg["query"], pdf_ids=pdf_uuids, top_k=cfg["top_k"]
+        retrieval_queries = _analysis_queries(analysis_type, cfg["query"])
+        retrieved = await _retrieve_analysis_context(
+            db=db,
+            user_id=user_id,
+            pdf_uuids=pdf_uuids,
+            analysis_type=analysis_type,
+            fallback_query=cfg["query"],
+            top_k=cfg["top_k"],
         )
 
         if not retrieved:
@@ -324,36 +590,17 @@ class AnalyzeService:
                 "created_at": None,
             }
 
-        # 2. Build context — group chunks by paper, KHÔNG đánh số theo chunk index
-        paper_groups: dict[str, list[dict]] = defaultdict(list)
-        pdf_name_map: dict[str, str] = {}
-        for r in retrieved:
-            pid = str(r["pdf_id"])
-            paper_groups[pid].append(r)
-            pdf_name_map[pid] = r.get("pdf_name", "Unknown")
+        # 2. Build evidence-indexed context.
+        context, evidence_map, evidence_sources, num_papers = _build_analysis_context(retrieved)
+        pdf_names = list(dict.fromkeys(source["pdf_name"] for source in evidence_sources))
 
-        context_parts = []
-        for paper_idx, (pid, chunks) in enumerate(paper_groups.items(), 1):
-            paper_label = pdf_name_map.get(pid, f"Paper {paper_idx}")
-            for chunk_data in chunks:
-                context_text = chunk_data.get("context_text", chunk_data["chunk"].chunk_text)
-                context_parts.append(
-                    f"[Paper {paper_idx}: {paper_label}]\n{context_text}\n"
-                )
-
-        context = "\n---\n".join(context_parts)
-        num_papers = len(paper_groups)
-        pdf_names = list(dict.fromkeys(pdf_name_map.get(pid, f"Paper {pid[:8]}") for pid in pdf_ids))
-
-        # 3. Build prompt
-        custom_instruction = ""
-        if custom_prompt:
-            custom_instruction = f"\nYÊU CẦU BỔ SUNG TỪ NGƯỜI DÙNG: {custom_prompt}\n"
-
-        user_prompt = cfg["prompt_template"].format(
+        # 3. Build prompt.
+        user_prompt = _build_analysis_prompt(
+            analysis_type=analysis_type,
+            cfg=cfg,
             num_papers=num_papers,
             context=context,
-            custom_instruction=custom_instruction,
+            custom_prompt=custom_prompt,
         )
 
         # 4. Call DeepSeek
@@ -370,20 +617,11 @@ class AnalyzeService:
 
         logger.info(f"DeepSeek analysis done: {elapsed:.2f}s, tokens={prompt_tokens + completion_tokens}")
 
-        # 5. Parse JSON
-        result_json = None
-        try:
-            # Clean potential markdown code fences
-            cleaned = answer.strip()
-            if cleaned.startswith("```"):
-                cleaned = cleaned.split("\n", 1)[-1]
-                cleaned = cleaned.rsplit("```", 1)[0]
-            if cleaned.startswith("json"):
-                cleaned = cleaned[4:].strip()
-            result_json = json.loads(cleaned)
-        except (json.JSONDecodeError, Exception) as e:
-            logger.warning(f"Failed to parse JSON from LLM: {e}")
-            result_json = {"raw_output": answer, "parse_error": str(e)}
+        # 5. Parse JSON and attach evidence trace.
+        result_json = _parse_json_answer(answer)
+        result_json["_evidence_sources"] = evidence_sources
+        result_json["_evidence_map"] = evidence_map
+        result_json["_retrieval_queries"] = retrieval_queries
 
         # 6. Save to DB
         analysis = MultiAnalysis(

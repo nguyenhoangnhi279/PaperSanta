@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FileText, Send, MessageSquare, Trash2, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
-import { ragChat, fetchSessions, fetchSession, deleteSession } from '../api/rag';
+import { ragChat, fetchSessions, fetchSession, deleteSession, explainSelection } from '../api/rag';
 import { getPdfFileUrl, summarizePdf } from '../api/pdf';
 import PDFViewer from './PDFViewer';
 import MarkdownRenderer from './MarkdownRenderer';
@@ -13,9 +13,29 @@ interface ReaderProps {
   paper?: PDFDocument | null;
   allPapers: PDFDocument[];
   onBack: () => void;
+  initialTargetPage?: number | null;
+  initialTargetText?: string | null;
 }
 
-export default function Reader({ paper, onBack }: ReaderProps) {
+function shortPdfName(name?: string | null, maxLength = 34) {
+  if (!name) return 'Unknown PDF';
+  const cleaned = name.replace(/\.pdf$/i, '');
+  if (cleaned.length <= maxLength) return cleaned;
+  return `${cleaned.slice(0, maxLength - 3).trim()}...`;
+}
+
+function formatCitationLabel(citation: any, fallbackIndex: number) {
+  const source = shortPdfName(citation.pdf_name, 30);
+  const page = citation.page_number ? `p. ${citation.page_number}` : 'page unknown';
+  const section = Array.isArray(citation.section_path) && citation.section_path.length > 0
+    ? citation.section_path[citation.section_path.length - 1]
+    : null;
+  return section
+    ? `${source} · ${page} · ${section}`
+    : `${source} · ${page} · Source ${citation.source_id || fallbackIndex + 1}`;
+}
+
+export default function Reader({ paper, onBack, initialTargetPage, initialTargetText }: ReaderProps) {
   const { session: authSession } = useAuth();
   const token = authSession?.access_token;
 
@@ -47,8 +67,8 @@ export default function Reader({ paper, onBack }: ReaderProps) {
   useEffect(() => {
     setMessages([]);
     setSessionId(null);
-    setViewerTarget(null);
-  }, [paper?.id]);
+    setViewerTarget(initialTargetPage ? { page: initialTargetPage, text: initialTargetText || undefined } : null);
+  }, [paper?.id, initialTargetPage, initialTargetText]);
 
   // Auto-scroll
   useEffect(() => {
@@ -141,6 +161,57 @@ export default function Reader({ paper, onBack }: ReaderProps) {
     void sendChatMessage(prompt);
   }, [sendChatMessage]);
 
+  const handleExplainSelectionApi = useCallback(async (payload: { text: string; pageNumber?: number | null; surroundingText?: string | null }) => {
+    const selectedText = payload.text.trim();
+    if (!selectedText || !paper || !token || loading) return;
+
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: `Explain selection: "${selectedText}"`, ts: new Date().toISOString() },
+    ]);
+    setLoading(true);
+    setViewerTarget({ page: payload.pageNumber || viewerTarget?.page || 1, text: selectedText });
+
+    try {
+      const result = await explainSelection({
+        pdf_id: paper.id,
+        selected_text: selectedText,
+        page_number: payload.pageNumber || null,
+        surrounding_text: payload.surroundingText || null,
+        top_k: 8,
+      }, token);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: result.answer,
+          ts: new Date().toISOString(),
+          tokens: { prompt: result.prompt_tokens, completion: result.completion_tokens },
+          citations: result.citations?.map((c: any) => ({
+            source_id: c.source_id,
+            chunk_id: c.chunk_id || '',
+            chunk_text: c.chunk_text || '',
+            score: c.score || 0,
+            pdf_id: c.pdf_id || '',
+            pdf_name: c.pdf_name || '',
+            page_number: c.page_number,
+            block_id: c.block_id,
+            section_path: c.section_path,
+            source_block_type: c.source_block_type,
+            retrieval_sources: c.retrieval_sources,
+          })),
+        },
+      ]);
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: `Explain failed: ${err.message}`, ts: new Date().toISOString() },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }, [loading, paper, token, viewerTarget?.page]);
+
   const handleDeleteSession = async (sid: string) => {
     if (!token) return;
     try {
@@ -193,7 +264,8 @@ export default function Reader({ paper, onBack }: ReaderProps) {
               <PDFViewer 
                 url={pdfUrl} 
                 targetPage={viewerTarget?.page} 
-                onExplainSelection={handleExplainSelection}
+                targetText={viewerTarget?.text}
+                onExplainSelection={handleExplainSelectionApi}
               />
             </div>
           </div>
@@ -314,20 +386,23 @@ export default function Reader({ paper, onBack }: ReaderProps) {
                       <MarkdownRenderer content={m.content} />
                     )}
                   </div>
-                  {m.citations && m.citations.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {m.citations.map((c: any, i) => (
+                  {(m.citations?.length ?? 0) > 0 && (
+                    <div className="hidden">
+                      {m.citations?.map((c: any, i) => (
                         <button
-                          key={i}
-                          title={c.chunk_text}
+                          key={`${c.chunk_id || i}-${c.page_number || 'unknown'}`}
+                          title={c.chunk_text || formatCitationLabel(c, i)}
                           onClick={() => {
                             if (c.page_number && c.pdf_id === paper?.id) {
                               setViewerTarget({ page: c.page_number, text: c.chunk_text });
                            }
                           }}
-                        className="text-[10px] bg-[var(--color-accent-subtle)] hover:bg-[var(--color-accent-subtle)] border border-[var(--color-accent-subtle)] text-[var(--color-accent)] px-2 py-1 rounded-full truncate max-w-[180px] transition-colors cursor-pointer flex items-center gap-1 font-medium"
+                        className="text-[10px] bg-[var(--color-accent-subtle)] hover:bg-[var(--color-accent-subtle)] border border-[var(--color-accent-subtle)] text-[var(--color-accent)] px-2 py-1 rounded-full truncate max-w-[260px] transition-colors cursor-pointer font-medium text-left"
                         >
+                          <span className="hidden">
                           📄 [{c.source_id || i + 1}] Trang {c.page_number || 1}
+                          </span>
+                          <span>{formatCitationLabel(c, i)}</span>
                         </button>
                       ))}
                     </div>

@@ -156,21 +156,23 @@ def _build_chat_context_and_citations(retrieved: list[dict]) -> tuple[str, list[
     context_parts: list[str] = []
     citation_list: list[dict] = []
 
-    for paper_idx, (pid, paper_chunks) in enumerate(paper_groups.items(), 1):
+    source_idx = 0
+    for _paper_idx, (pid, paper_chunks) in enumerate(paper_groups.items(), 1):
         paper_label = paper_chunks[0].get("pdf_name", "Unknown")
         for chunk_data in paper_chunks:
+            source_idx += 1
             chunk: PDFChunk = chunk_data["chunk"]
             context_text = chunk_data.get("context_text", chunk.chunk_text)
             page_label = chunk.page_number or "unknown"
             section_label = " > ".join(chunk.section_path or [])
 
-            context_header = f"[Paper {paper_idx}: {paper_label}, page {page_label}]"
+            context_header = f"[{source_idx}: {paper_label}, page {page_label}]"
             if section_label:
                 context_header = f"{context_header}\nSection: {section_label}"
             context_parts.append(f"{context_header}\n{context_text}\n")
 
             citation_list.append({
-                "source_id": paper_idx,
+                "source_id": source_idx,
                 "chunk_id": str(chunk.id),
                 "chunk_text": chunk.chunk_text[:200],
                 "score": chunk_data["score"],
@@ -184,6 +186,12 @@ def _build_chat_context_and_citations(retrieved: list[dict]) -> tuple[str, list[
             })
 
     return "\n---\n".join(context_parts), citation_list, len(paper_groups)
+
+
+def _compact_numeric_citations(answer: str) -> str:
+    answer = re.sub(r"\[(?:Source|Paper)\s+(\d+)\]", r"[\1]", answer, flags=re.IGNORECASE)
+    answer = re.sub(r"\[(?:Source|Paper)\s+(\d+),\s*page\s+\d+\]", r"[\1]", answer, flags=re.IGNORECASE)
+    return answer
 
 
 def _build_chat_prompt(
@@ -203,7 +211,7 @@ def _build_chat_prompt(
             "Scope: single-paper QA.\n"
             "- Treat the retrieved sources as coming from the currently opened PDF.\n"
             "- Answer only what the paper supports. If the paper does not provide enough evidence, say that clearly.\n"
-            "- Cite source-backed claims with [Paper 1].\n"
+            "- Cite source-backed claims with compact numeric citations only, e.g. [1], [2].\n"
         )
     else:
         scope_rules = (
@@ -211,7 +219,7 @@ def _build_chat_prompt(
             "- Keep claims separated by paper; do not merge evidence from different papers into one unsupported claim.\n"
             "- If the user asks for comparison, answer with a compact comparison table or clearly separated bullets.\n"
             "- If one paper lacks evidence for a point, say that evidence was not found for that paper.\n"
-            "- Cite source-backed claims with the corresponding label, e.g. [Paper 1], [Paper 2].\n"
+            "- Cite source-backed claims with compact numeric citations only, e.g. [1], [2].\n"
         )
 
     return (
@@ -223,6 +231,8 @@ def _build_chat_prompt(
         f"{scope_rules}"
         "- Answer primarily from the retrieved sources.\n"
         "- If you add background knowledge that is not directly in the sources, put it under a short 'Outside the paper' note.\n"
+        "- Never use labels such as [Paper 1], [Paper 2], [Source 1], or source names inside citations.\n"
+        "- Numeric citations must refer to the numbered retrieved sources above.\n"
         "- Do not mention chunk numbers, embedding, vector search, or internal retrieval mechanics."
     )
 
@@ -542,6 +552,7 @@ class RAGService:
                 max_tokens=settings.RAG_MAX_TOKENS,
             )
         )
+        answer = _compact_numeric_citations(answer)
         generate_time = time.time() - t1
 
         logger.info(
@@ -653,7 +664,7 @@ class RAGService:
             chunk: PDFChunk = r["chunk"]
             context_text = r.get("context_text", chunk.chunk_text)
             context_parts.append(
-                f"[Source {idx}: {r['pdf_name']}, page {chunk.page_number or 'unknown'}]\n"
+                f"[{idx}: {r['pdf_name']}, page {chunk.page_number or 'unknown'}]\n"
                 f"{context_text}"
             )
             citation_list.append({
@@ -692,6 +703,7 @@ class RAGService:
                 max_tokens=min(settings.RAG_MAX_TOKENS, 1200),
             )
         )
+        answer = _compact_numeric_citations(answer)
         return {
             "answer": answer,
             "citations": citation_list,

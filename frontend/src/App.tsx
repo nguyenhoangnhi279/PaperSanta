@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
-import Reader from './components/Reader';
-import Comparison from './components/Comparison';
-import Analyzer from './components/Analyzer';
-import Discovery from './components/Discovery';
 import { fetchPdfs } from './api/pdf';
 import type { PDFDocument, ActiveView } from './types';
+
+const Reader = lazy(() => import('./components/Reader'));
+const Analyzer = lazy(() => import('./components/Analyzer'));
+const Comparison = lazy(() => import('./components/Comparison'));
+const Discovery = lazy(() => import('./components/Discovery'));
 
 function LoginPage() {
   const { signIn } = useAuth();
@@ -44,6 +45,8 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<ActiveView>('dashboard');
   const [papers, setPapers] = useState<PDFDocument[]>([]);
   const [selectedPaper, setSelectedPaper] = useState<PDFDocument | null>(null);
+  const [readerTargetPage, setReaderTargetPage] = useState<number | null>(null);
+  const [readerTargetText, setReaderTargetText] = useState<string | null>(null);
   const fetchPapers = useCallback(async () => {
     if (!token) return;
     try {
@@ -65,9 +68,17 @@ function AppContent() {
     }
   }, [user, loading, fetchPapers]);
 
-  const handleSelectPaper = (paper: PDFDocument) => {
+  const handleSelectPaper = (paper: PDFDocument, targetPage: number | null = null, targetText: string | null = null) => {
     setSelectedPaper(paper);
+    setReaderTargetPage(targetPage);
+    setReaderTargetText(targetText);
     setActiveTab('reader');
+  };
+
+  const handleOpenEvidence = (pdfId: string, pageNumber?: number | null, targetText?: string | null) => {
+    const targetPaper = papers.find((p) => p.id === pdfId);
+    if (!targetPaper) return;
+    handleSelectPaper(targetPaper, pageNumber || null, targetText || null);
   };
 
   const handleSelectRecent = (id: string) => {
@@ -98,6 +109,12 @@ function AppContent() {
     return <LoginPage />;
   }
 
+  const viewFallback = (
+    <div className="h-full flex items-center justify-center text-sm text-[var(--color-ink-secondary)]">
+      Loading...
+    </div>
+  );
+
   return (
     <div className="flex h-screen bg-[var(--color-bg)] overflow-hidden">
       <Sidebar
@@ -108,76 +125,80 @@ function AppContent() {
       />
 
       <main className="flex-1 overflow-hidden relative">
-        <AnimatePresence mode="wait">
-          {activeTab === 'dashboard' && (
-            <motion.div
-              key="dashboard"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="h-full overflow-y-auto"
-            >
-              <Dashboard
-                papers={papers}
-                onPaperAdded={fetchPapers}
-                onSelectPaper={handleSelectPaper}
-                onPaperDeleted={fetchPapers}
-              />
-            </motion.div>
-          )}
+        <Suspense fallback={viewFallback}>
+          <AnimatePresence mode="wait">
+            {activeTab === 'dashboard' && (
+              <motion.div
+                key="dashboard"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full overflow-y-auto"
+              >
+                <Dashboard
+                  papers={papers}
+                  onPaperAdded={fetchPapers}
+                  onSelectPaper={handleSelectPaper}
+                  onPaperDeleted={fetchPapers}
+                />
+              </motion.div>
+            )}
 
-          {activeTab === 'reader' && (
-            <motion.div
-              key="reader"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="h-full"
-            >
-              <Reader
-                paper={selectedPaper}
-                allPapers={papers}
-                onBack={() => { setSelectedPaper(null); setActiveTab('dashboard'); }}
-              />
-            </motion.div>
-          )}
+            {activeTab === 'reader' && (
+              <motion.div
+                key="reader"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full"
+              >
+                <Reader
+                  paper={selectedPaper}
+                  allPapers={papers}
+                  onBack={() => { setSelectedPaper(null); setReaderTargetPage(null); setReaderTargetText(null); setActiveTab('dashboard'); }}
+                  initialTargetPage={readerTargetPage}
+                  initialTargetText={readerTargetText}
+                />
+              </motion.div>
+            )}
 
-          {activeTab === 'analyzer' && (
-            <motion.div
-              key="analyzer"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="h-full overflow-y-auto"
-            >
-              <Analyzer papers={papers} />
-            </motion.div>
-          )}
+            {activeTab === 'analyzer' && (
+              <motion.div
+                key="analyzer"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full overflow-y-auto"
+              >
+                <Analyzer papers={papers} onOpenEvidence={handleOpenEvidence} />
+              </motion.div>
+            )}
 
-          {activeTab === 'comparison' && (
-            <motion.div
-              key="comparison"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="h-full overflow-y-auto"
-            >
-              <Comparison papers={papers} />
-            </motion.div>
-          )}
+            {activeTab === 'comparison' && (
+              <motion.div
+                key="comparison"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full overflow-y-auto"
+              >
+                <Comparison papers={papers} />
+              </motion.div>
+            )}
 
-          {activeTab === 'discovery' && (
-            <motion.div
-              key="discovery"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="h-full overflow-y-auto"
-            >
-              <Discovery />
-            </motion.div>
-          )}
-        </AnimatePresence>
+            {activeTab === 'discovery' && (
+              <motion.div
+                key="discovery"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full overflow-y-auto"
+              >
+                <Discovery />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Suspense>
       </main>
 
     </div>
