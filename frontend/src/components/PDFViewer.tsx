@@ -17,7 +17,6 @@ GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 interface PDFViewerProps {
   url: string;
   targetPage?: number | null;
-  targetText?: string | null;
   targetBBoxes?: CitationBBox[];
   onExplainSelection?: (payload: { text: string; pageNumber?: number | null; surroundingText?: string | null }) => void;
 }
@@ -176,28 +175,7 @@ function PDFPage({ pageNumber, pdfDocument, containerWidth, zoom, targetBBoxes, 
   );
 }
 
-function normalizeForHighlight(text: string) {
-  return text
-    .replace(/\[Section:[^\]]+\]/gi, ' ')
-    .replace(/[^\p{L}\p{N}\s.-]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
-}
-
-function highlightTokens(text: string) {
-  const stop = new Set([
-    'the', 'and', 'for', 'that', 'with', 'this', 'from', 'into', 'paper', 'section',
-    'model', 'method', 'results', 'table', 'figure',
-  ]);
-  const tokens = normalizeForHighlight(text)
-    .split(/\s+/)
-    .map((token) => token.replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, ''))
-    .filter((token) => token.length >= 4 && !stop.has(token));
-  return Array.from(new Set(tokens)).slice(0, 18);
-}
-
-export default function PDFViewer({ url, targetPage, targetText, targetBBoxes = [], onExplainSelection }: PDFViewerProps) {
+export default function PDFViewer({ url, targetPage, targetBBoxes = [], onExplainSelection }: PDFViewerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<Map<number, HTMLDivElement>>(new Map());
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
@@ -254,30 +232,7 @@ export default function PDFViewer({ url, targetPage, targetText, targetBBoxes = 
     if (!targetPage) return;
     const pageElement = pagesRef.current.get(targetPage);
     pageElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-    document.querySelectorAll('.pdf-citation-highlight').forEach((element) => {
-      element.classList.remove('pdf-citation-highlight');
-    });
-
-    const hasBBoxes = targetBBoxes.some((target) => target.pageNumber === targetPage);
-    if (hasBBoxes || !pageElement || !targetText) return;
-    const tokens = highlightTokens(targetText);
-    if (tokens.length === 0) return;
-
-    window.setTimeout(() => {
-      const spans = Array.from(pageElement.querySelectorAll<HTMLSpanElement>('.pdf-page-text-layer span'));
-      let matched = 0;
-      for (const span of spans) {
-        const text = normalizeForHighlight(span.textContent || '');
-        if (!text) continue;
-        if (tokens.some((token) => text.includes(token) || token.includes(text))) {
-          span.classList.add('pdf-citation-highlight');
-          matched += 1;
-        }
-        if (matched >= 80) break;
-      }
-    }, 250);
-  }, [targetPage, targetText, targetBBoxes, pageCount]);
+  }, [targetPage, pageCount]);
 
   const registerPageRef = useCallback((pageNumber: number, element: HTMLDivElement | null) => {
     if (element) {

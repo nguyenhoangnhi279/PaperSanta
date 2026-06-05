@@ -275,7 +275,6 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
               <PDFViewer 
                 url={pdfUrl} 
                 targetPage={viewerTarget?.page} 
-                targetText={viewerTarget?.text}
                 targetBBoxes={
                   viewerTarget?.page && viewerTarget?.bbox
                     ? [{ pageNumber: viewerTarget.page, bbox: viewerTarget.bbox }]
