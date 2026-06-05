@@ -191,8 +191,18 @@ def _build_chat_context_and_citations(retrieved: list[dict]) -> tuple[str, list[
 
 
 def _compact_numeric_citations(answer: str) -> str:
-    answer = re.sub(r"\[(?:Source|Paper)\s+(\d+)\]", r"[\1]", answer, flags=re.IGNORECASE)
-    answer = re.sub(r"\[(?:Source|Paper)\s+(\d+),\s*page\s+\d+\]", r"[\1]", answer, flags=re.IGNORECASE)
+    def replace_source_list(match: re.Match) -> str:
+        raw_numbers = match.group(1)
+        numbers = re.findall(r"\d+", raw_numbers)
+        return ", ".join(f"[{number}]" for number in numbers)
+
+    answer = re.sub(
+        r"\[(?:Source|Paper)\s+([\d,\s]+)(?:,\s*page\s+\d+)?\]",
+        replace_source_list,
+        answer,
+        flags=re.IGNORECASE,
+    )
+    answer = re.sub(r"\s+([.,;:])", r"\1", answer)
     return answer
 
 
