@@ -19,6 +19,7 @@ from app.core.deepseek_provider import DeepSeekProvider
 from app.models.pdf_document import PDFDocument
 from app.models.embedding import PDFChunk, PDFEmbedding
 from app.models.chat import ChatSession
+from app.models.pdf_block import PDFBlock
 
 logger = logging.getLogger(__name__)
 
@@ -180,6 +181,7 @@ def _build_chat_context_and_citations(retrieved: list[dict]) -> tuple[str, list[
                 "pdf_name": paper_label,
                 "page_number": chunk.page_number,
                 "block_id": str(chunk.block_id) if chunk.block_id else None,
+                "bbox": chunk_data.get("block_bbox"),
                 "section_path": chunk.section_path,
                 "source_block_type": chunk.source_block_type,
                 "retrieval_sources": chunk_data.get("retrieval_sources", []),
@@ -359,10 +361,22 @@ class RAGService:
             parent_rows = await session.execute(select(PDFChunk).where(PDFChunk.id.in_(parent_ids)))
             parents = {parent.id: parent for parent in parent_rows.scalars().all()}
 
+        block_ids = {
+            result["chunk"].block_id
+            for result in results
+            if result["chunk"].block_id
+        }
+        blocks = {}
+        if block_ids:
+            block_rows = await session.execute(select(PDFBlock).where(PDFBlock.id.in_(block_ids)))
+            blocks = {block.id: block for block in block_rows.scalars().all()}
+
         for result in results:
             chunk = result["chunk"]
             parent = parents.get(chunk.parent_id)
             result["context_text"] = parent.chunk_text if parent else chunk.chunk_text
+            block = blocks.get(chunk.block_id)
+            result["block_bbox"] = block.bbox if block else None
         return results
 
     @staticmethod
@@ -668,6 +682,7 @@ class RAGService:
                 f"{context_text}"
             )
             citation_list.append({
+                "source_id": idx,
                 "chunk_id": str(chunk.id),
                 "chunk_text": chunk.chunk_text[:200],
                 "score": r["score"],
@@ -675,6 +690,7 @@ class RAGService:
                 "pdf_name": r["pdf_name"],
                 "page_number": chunk.page_number,
                 "block_id": str(chunk.block_id) if chunk.block_id else None,
+                "bbox": r.get("block_bbox"),
                 "section_path": chunk.section_path,
                 "source_block_type": chunk.source_block_type,
                 "retrieval_sources": r.get("retrieval_sources", []),

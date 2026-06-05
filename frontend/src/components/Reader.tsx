@@ -6,7 +6,7 @@ import { ragChat, fetchSessions, fetchSession, deleteSession, explainSelection }
 import { getPdfFileUrl, summarizePdf } from '../api/pdf';
 import PDFViewer from './PDFViewer';
 import MarkdownRenderer from './MarkdownRenderer';
-import type { PDFDocument, ChatMessage, ChatSession } from '../types';
+import type { PDFDocument, ChatMessage, ChatSession, Citation } from '../types';
 
 
 interface ReaderProps {
@@ -48,7 +48,7 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
   const [showSessions, setShowSessions] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [viewerTarget, setViewerTarget] = useState<{ page: number; text?: string } | null>(null);
+  const [viewerTarget, setViewerTarget] = useState<{ page: number; text?: string; bbox?: number[] | null } | null>(null);
   const selectedPdfIds = paper ? [paper.id] : [];
 
   // Load PDF URL when paper changes
@@ -67,7 +67,7 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
   useEffect(() => {
     setMessages([]);
     setSessionId(null);
-    setViewerTarget(initialTargetPage ? { page: initialTargetPage, text: initialTargetText || undefined } : null);
+    setViewerTarget(initialTargetPage ? { page: initialTargetPage, text: initialTargetText || undefined, bbox: null } : null);
   }, [paper?.id, initialTargetPage, initialTargetText]);
 
   // Auto-scroll
@@ -134,6 +134,7 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
             pdf_name: c.pdf_name || '',
             page_number: c.page_number,
             block_id: c.block_id,
+            bbox: c.bbox,
             section_path: c.section_path,
             source_block_type: c.source_block_type,
             retrieval_sources: c.retrieval_sources,
@@ -170,7 +171,7 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
       { role: 'user', content: `Explain selection: "${selectedText}"`, ts: new Date().toISOString() },
     ]);
     setLoading(true);
-    setViewerTarget({ page: payload.pageNumber || viewerTarget?.page || 1, text: selectedText });
+    setViewerTarget({ page: payload.pageNumber || viewerTarget?.page || 1, text: selectedText, bbox: null });
 
     try {
       const result = await explainSelection({
@@ -196,6 +197,7 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
             pdf_name: c.pdf_name || '',
             page_number: c.page_number,
             block_id: c.block_id,
+            bbox: c.bbox,
             section_path: c.section_path,
             source_block_type: c.source_block_type,
             retrieval_sources: c.retrieval_sources,
@@ -211,6 +213,15 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
       setLoading(false);
     }
   }, [loading, paper, token, viewerTarget?.page]);
+
+  const handleCitationClick = useCallback((citation: Citation) => {
+    if (!citation.page_number || citation.pdf_id !== paper?.id) return;
+    setViewerTarget({
+      page: citation.page_number,
+      text: citation.chunk_text,
+      bbox: Array.isArray(citation.bbox) ? citation.bbox : null,
+    });
+  }, [paper?.id]);
 
   const handleDeleteSession = async (sid: string) => {
     if (!token) return;
@@ -265,6 +276,11 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
                 url={pdfUrl} 
                 targetPage={viewerTarget?.page} 
                 targetText={viewerTarget?.text}
+                targetBBoxes={
+                  viewerTarget?.page && viewerTarget?.bbox
+                    ? [{ pageNumber: viewerTarget.page, bbox: viewerTarget.bbox }]
+                    : []
+                }
                 onExplainSelection={handleExplainSelectionApi}
               />
             </div>
@@ -383,7 +399,11 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
                     {m.role === 'user' ? (
                       m.content
                     ) : (
-                      <MarkdownRenderer content={m.content} />
+                      <MarkdownRenderer
+                        content={m.content}
+                        citations={m.citations || []}
+                        onCitationClick={handleCitationClick}
+                      />
                     )}
                   </div>
                   {(m.citations?.length ?? 0) > 0 && (
@@ -394,7 +414,11 @@ export default function Reader({ paper, onBack, initialTargetPage, initialTarget
                           title={c.chunk_text || formatCitationLabel(c, i)}
                           onClick={() => {
                             if (c.page_number && c.pdf_id === paper?.id) {
-                              setViewerTarget({ page: c.page_number, text: c.chunk_text });
+                              setViewerTarget({
+                                page: c.page_number,
+                                text: c.chunk_text,
+                                bbox: Array.isArray(c.bbox) ? c.bbox : null,
+                              });
                            }
                           }}
                         className="text-[10px] bg-[var(--color-accent-subtle)] hover:bg-[var(--color-accent-subtle)] border border-[var(--color-accent-subtle)] text-[var(--color-accent)] px-2 py-1 rounded-full truncate max-w-[260px] transition-colors cursor-pointer font-medium text-left"

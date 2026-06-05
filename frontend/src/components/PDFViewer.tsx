@@ -18,7 +18,13 @@ interface PDFViewerProps {
   url: string;
   targetPage?: number | null;
   targetText?: string | null;
+  targetBBoxes?: CitationBBox[];
   onExplainSelection?: (payload: { text: string; pageNumber?: number | null; surroundingText?: string | null }) => void;
+}
+
+interface CitationBBox {
+  pageNumber: number;
+  bbox: number[];
 }
 
 interface SelectionMenu {
@@ -34,6 +40,7 @@ interface PDFPageProps {
   pdfDocument: PDFDocumentProxy;
   containerWidth: number;
   zoom: number;
+  targetBBoxes: CitationBBox[];
   registerPageRef: (pageNumber: number, element: HTMLDivElement | null) => void;
 }
 
@@ -41,13 +48,13 @@ const MIN_ZOOM = 0.6;
 const MAX_ZOOM = 2.5;
 const ZOOM_STEP = 0.2;
 
-function PDFPage({ pageNumber, pdfDocument, containerWidth, zoom, registerPageRef }: PDFPageProps) {
+function PDFPage({ pageNumber, pdfDocument, containerWidth, zoom, targetBBoxes, registerPageRef }: PDFPageProps) {
   const pageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textLayerRef = useRef<HTMLDivElement>(null);
   const renderTaskRef = useRef<RenderTask | null>(null);
   const textLayerTaskRef = useRef<TextLayer | null>(null);
-  const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
+  const [pageSize, setPageSize] = useState<{ width: number; height: number; baseWidth: number; baseHeight: number } | null>(null);
 
   useEffect(() => {
     registerPageRef(pageNumber, pageRef.current);
@@ -86,7 +93,12 @@ function PDFPage({ pageNumber, pdfDocument, containerWidth, zoom, registerPageRe
         pageRef.current.style.width = `${viewport.width}px`;
         pageRef.current.style.height = `${viewport.height}px`;
       }
-      setPageSize({ width: viewport.width, height: viewport.height });
+      setPageSize({
+        width: viewport.width,
+        height: viewport.height,
+        baseWidth: baseViewport.width,
+        baseHeight: baseViewport.height,
+      });
 
       textLayerElement.style.setProperty('--total-scale-factor', String(scale));
       textLayerElement.style.width = `${viewport.width}px`;
@@ -138,6 +150,27 @@ function PDFPage({ pageNumber, pdfDocument, containerWidth, zoom, registerPageRe
       }
     >
       <canvas ref={canvasRef} className="pdf-page-canvas block" />
+      {pageSize && targetBBoxes.length > 0 && (
+        <div className="pdf-bbox-layer absolute inset-0">
+          {targetBBoxes.map((target, index) => {
+            const [x0, y0, x1, y1] = target.bbox;
+            if ([x0, y0, x1, y1].some((value) => typeof value !== 'number' || Number.isNaN(value))) {
+              return null;
+            }
+            const left = (Math.min(x0, x1) / pageSize.baseWidth) * pageSize.width;
+            const top = (Math.min(y0, y1) / pageSize.baseHeight) * pageSize.height;
+            const width = (Math.abs(x1 - x0) / pageSize.baseWidth) * pageSize.width;
+            const height = (Math.abs(y1 - y0) / pageSize.baseHeight) * pageSize.height;
+            return (
+              <div
+                key={`${target.pageNumber}-${index}-${x0}-${y0}`}
+                className="pdf-bbox-highlight"
+                style={{ left, top, width, height }}
+              />
+            );
+          })}
+        </div>
+      )}
       <div ref={textLayerRef} className="textLayer pdf-page-text-layer" />
     </div>
   );
@@ -164,7 +197,7 @@ function highlightTokens(text: string) {
   return Array.from(new Set(tokens)).slice(0, 18);
 }
 
-export default function PDFViewer({ url, targetPage, targetText, onExplainSelection }: PDFViewerProps) {
+export default function PDFViewer({ url, targetPage, targetText, targetBBoxes = [], onExplainSelection }: PDFViewerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<Map<number, HTMLDivElement>>(new Map());
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
@@ -226,7 +259,8 @@ export default function PDFViewer({ url, targetPage, targetText, onExplainSelect
       element.classList.remove('pdf-citation-highlight');
     });
 
-    if (!pageElement || !targetText) return;
+    const hasBBoxes = targetBBoxes.some((target) => target.pageNumber === targetPage);
+    if (hasBBoxes || !pageElement || !targetText) return;
     const tokens = highlightTokens(targetText);
     if (tokens.length === 0) return;
 
@@ -243,7 +277,7 @@ export default function PDFViewer({ url, targetPage, targetText, onExplainSelect
         if (matched >= 80) break;
       }
     }, 250);
-  }, [targetPage, targetText, pageCount]);
+  }, [targetPage, targetText, targetBBoxes, pageCount]);
 
   const registerPageRef = useCallback((pageNumber: number, element: HTMLDivElement | null) => {
     if (element) {
@@ -388,6 +422,7 @@ export default function PDFViewer({ url, targetPage, targetText, onExplainSelect
                 pdfDocument={pdfDocument}
                 containerWidth={containerWidth}
                 zoom={zoom}
+                targetBBoxes={targetBBoxes.filter((target) => target.pageNumber === index + 1)}
                 registerPageRef={registerPageRef}
               />
             ))}

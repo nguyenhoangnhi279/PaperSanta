@@ -17,6 +17,7 @@ class CitationResult(BaseModel):
     pdf_name: str
     page_number: Optional[int] = None
     block_id: Optional[UUID] = None
+    bbox: Optional[list[float]] = None
     section_path: list[str] | None = None
     source_block_type: Optional[str] = None
     retrieval_sources: list[str] = []
@@ -31,6 +32,7 @@ class CitationInput(BaseModel):
     pdf_name: str
     page_number: Optional[int] = None
     block_id: Optional[UUID] = None
+    bbox: Optional[list[float]] = None
     section_path: list[str] | None = None
     source_block_type: Optional[str] = None
     retrieval_sources: list[str] = []

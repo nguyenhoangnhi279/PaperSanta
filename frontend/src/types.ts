@@ -21,6 +21,7 @@ export interface Citation {
   pdf_name: string;
   page_number?: number;
   block_id?: string;
+  bbox?: number[] | null;
   section_path?: string[];
   source_block_type?: string;
   retrieval_sources?: string[];

@@ -446,12 +446,50 @@ Current citations can provide:
 - `pdf_id`
 - `pdf_name`
 - `page_number`
+- `block_id`
 
-Still needed for exact source highlighting:
+Decision for final MVP pass:
 
-- stable `block_id` in citation response;
-- bbox or text range from extraction;
-- frontend text/bbox highlight support.
+- implement block-level bbox citation highlight;
+- keep fuzzy text highlight as fallback when bbox is missing;
+- do not expand into equation/table/figure extraction beyond placeholders.
+
+Implementation requirements:
+
+- extractor must populate `pdf_blocks.bbox`;
+- citation response must include `bbox`;
+- Reader must pass citation bbox into PDFViewer;
+- PDFViewer must draw a rectangle overlay on the cited page;
+- PDFs must be re-indexed after this change, otherwise old rows will still have null bbox.
+
+Expected accuracy:
+
+- good enough to jump/highlight the cited paragraph or text block;
+- not yet precise to exact sentence/word;
+- scanned PDFs/OCR-heavy PDFs may still need a later OCR/span pipeline.
+
+Implemented in branch `codex/bbox-dark-mode-fixes`:
+
+- `pymupdf4llm` extractor now also reads PyMuPDF text block rectangles and stores block-level `bbox` on `pdf_blocks`;
+- RAG citation responses now include `bbox`;
+- answer markers like `[1]` are clickable in chat and jump/highlight the cited PDF region;
+- PDFViewer draws bbox overlays and falls back to fuzzy text highlight when bbox is absent.
+
+Smoke test:
+
+```powershell
+.\.venv\Scripts\python.exe -c "import fitz; from app.services.extraction_service import PyMuPDF4LLMExtractor; doc=fitz.open(); page=doc.new_page(); page.insert_text((72,72), 'Hello citation bbox test. This paragraph should produce a bounding box for highlighting.'); data=doc.tobytes(); doc.close(); res=PyMuPDF4LLMExtractor().extract(data); print({'blocks': len(res.blocks), 'with_bbox': sum(1 for b in res.blocks if b.bbox), 'sample_bbox': next((b.bbox for b in res.blocks if b.bbox), None)})"
+```
+
+Result:
+
+```text
+{'blocks': 1, 'with_bbox': 1, 'sample_bbox': [72.0, 60.17499923706055, 496.94091796875, 75.28900146484375]}
+```
+
+Operational requirement:
+
+- re-index PDFs after this change; old indexed blocks will still have `bbox = null`.
 
 ### Extraction Quality
 

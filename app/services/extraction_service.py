@@ -106,7 +106,8 @@ class PyMuPDF4LLMExtractor:
             tmp_path = Path(tmp.name)
 
         try:
-            blocks = self._extract_blocks(pymupdf4llm, tmp_path)
+            page_bboxes = self._extract_page_bboxes(tmp_path)
+            blocks = self._extract_blocks(pymupdf4llm, tmp_path, page_bboxes)
         finally:
             tmp_path.unlink(missing_ok=True)
 
@@ -121,7 +122,34 @@ class PyMuPDF4LLMExtractor:
             stats=stats,
         )
 
-    def _extract_blocks(self, pymupdf4llm, pdf_path: Path) -> list[DocumentBlock]:
+    def _extract_page_bboxes(self, pdf_path: Path) -> dict[int, list[dict]]:
+        try:
+            import fitz
+        except ImportError:
+            return {}
+
+        page_bboxes: dict[int, list[dict]] = {}
+        document = fitz.open(str(pdf_path))
+        try:
+            for page_index, page in enumerate(document, start=1):
+                entries: list[dict] = []
+                for raw_block in page.get_text("blocks"):
+                    if len(raw_block) < 5:
+                        continue
+                    x0, y0, x1, y1, text = raw_block[:5]
+                    cleaned = normalize_extracted_text(str(text or ""))
+                    if not cleaned:
+                        continue
+                    entries.append({
+                        "bbox": [float(x0), float(y0), float(x1), float(y1)],
+                        "text": cleaned,
+                    })
+                page_bboxes[page_index] = entries
+        finally:
+            document.close()
+        return page_bboxes
+
+    def _extract_blocks(self, pymupdf4llm, pdf_path: Path, page_bboxes: dict[int, list[dict]] | None = None) -> list[DocumentBlock]:
         markdown = pymupdf4llm.to_markdown(
             str(pdf_path),
             page_chunks=True,
@@ -145,6 +173,7 @@ class PyMuPDF4LLMExtractor:
                     content_json=item,
                     current_section_path=current_section_path,
                 )
+                attach_block_bboxes(page_blocks, page_bboxes or {})
                 for block in page_blocks:
                     if block.block_type == "heading" and block.section_path:
                         current_section_path = block.section_path
@@ -223,6 +252,56 @@ def split_markdown_page(
                 )
             )
     return blocks
+
+
+def attach_block_bboxes(blocks: list[DocumentBlock], page_bboxes: dict[int, list[dict]]) -> None:
+    used_by_page: dict[int, set[int]] = {}
+    for block in blocks:
+        if block.page_number is None:
+            continue
+        candidates = page_bboxes.get(block.page_number) or []
+        if not candidates:
+            continue
+
+        used = used_by_page.setdefault(block.page_number, set())
+        best_index: int | None = None
+        best_score = 0.0
+        block_terms = significant_terms(block.content_markdown)
+
+        for index, candidate in enumerate(candidates):
+            if index in used:
+                continue
+            candidate_terms = significant_terms(candidate.get("text") or "")
+            score = term_overlap(block_terms, candidate_terms)
+            if score > best_score:
+                best_score = score
+                best_index = index
+
+        if best_index is None or best_score < 0.08:
+            for index in range(len(candidates)):
+                if index not in used:
+                    best_index = index
+                    break
+
+        if best_index is not None:
+            used.add(best_index)
+            block.bbox = candidates[best_index].get("bbox")
+
+
+def significant_terms(text: str, limit: int = 60) -> set[str]:
+    cleaned = re.sub(r"\[Section:[^\]]+\]", " ", text, flags=re.IGNORECASE)
+    terms = re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,}|\d+(?:\.\d+)?", cleaned.lower())
+    stop = {
+        "the", "and", "for", "that", "with", "this", "from", "into", "paper", "section",
+        "figure", "table", "are", "was", "were", "have", "has", "had", "not", "can",
+    }
+    return {term for term in terms[:limit] if term not in stop}
+
+
+def term_overlap(left: set[str], right: set[str]) -> float:
+    if not left or not right:
+        return 0.0
+    return len(left & right) / max(len(left), 1)
 
 
 def clean_heading_text(text: str) -> str:

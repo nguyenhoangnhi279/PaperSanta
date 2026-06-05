@@ -24,6 +24,19 @@
   user-select: text;
 }
 
+.pdf-bbox-layer {
+  z-index: 3;
+  pointer-events: none;
+}
+
+.pdf-bbox-highlight {
+  position: absolute;
+  border-radius: 3px;
+  background: rgba(250, 204, 21, 0.24);
+  border: 2px solid rgba(202, 138, 4, 0.85);
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.18);
+}
+
 .pdf-page-text-layer span,
 .pdf-page-text-layer br {
   user-select: text;
