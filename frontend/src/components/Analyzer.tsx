@@ -11,6 +11,17 @@ import AnalyzerSynthesisResult from './AnalyzerSynthesisResult';
 import AnalyzerGapResult from './AnalyzerGapResult';
 import type { PDFDocument, AnalysisType } from '../types';
 
+const hasSimilarTopics = (topicsA?: string[], topicsB?: string[]) => {
+  if (!topicsA || !topicsB || !Array.isArray(topicsA) || !Array.isArray(topicsB) || topicsA.length === 0 || topicsB.length === 0) {
+    return false;
+  }
+  const lowerA = topicsA.map(t => String(t).toLowerCase().trim());
+  const lowerB = topicsB.map(t => String(t).toLowerCase().trim());
+  return lowerA.some(a => 
+    lowerB.some(b => a.includes(b) || b.includes(a))
+  );
+};
+
 interface AnalyzerProps {
   papers: PDFDocument[];
   onOpenEvidence?: (pdfId: string, pageNumber?: number | null, targetText?: string | null) => void;
@@ -105,7 +116,6 @@ export default function Analyzer({ papers, onOpenEvidence }: AnalyzerProps) {
       setShowHistory(false);
     } catch { /* ignore */ }
   };
-
   const handleDelete = async (id: string) => {
     if (!token) return;
     try {
@@ -139,6 +149,7 @@ export default function Analyzer({ papers, onOpenEvidence }: AnalyzerProps) {
 
   const currentModeTypes = modes.find((m) => m.id === mode)?.types || [];
   const selectedDocs = papers.filter((d) => selectedPdfIds.includes(d.id));
+  const selectedTopics = Array.from(new Set(selectedDocs.flatMap(d => d.extracted_topics || [])));
   const indexedPaperIds = new Set(papers.map((d) => d.id));
 
   const getTypeName = (type: string) => allTypes.find((t) => t.id === type)?.label || type;
@@ -283,7 +294,15 @@ export default function Analyzer({ papers, onOpenEvidence }: AnalyzerProps) {
                     >
                       {selectedPdfIds.includes(doc.id) && <Check size={12} />}
                     </div>
-                    <span className="truncate flex-1">{doc.original_name}</span>
+                    <div className="truncate flex-1 flex items-center gap-2">
+                    <span className="truncate">{doc.original_name}</span>
+                    
+                    {!selectedPdfIds.includes(doc.id) && selectedTopics.length > 0 && hasSimilarTopics(selectedTopics, doc.extracted_topics) && (
+                      <span className="text-[9px] bg-[var(--color-success-subtle)] text-[var(--color-success)] px-1.5 py-0.5 rounded-full font-bold border border-[var(--color-success)]/20 shrink-0">
+                        Similar
+                      </span>
+                    )}
+                    </div>
                     <span className={cn(
                       'text-[10px] px-1.5 py-0.5 rounded-full',
                       doc.status === 'indexed' ? 'bg-[var(--color-success-subtle)] text-[var(--color-success)]' :
