@@ -5,6 +5,8 @@ embedding_service.py — Business logic cho chunking & embedding
 import re
 import uuid
 import logging
+import json
+import asyncio
 from uuid import UUID
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import import_all_models
 from app.models.embedding import PDFChunk, PDFEmbedding
+from app.core.deepseek_provider import DeepSeekProvider
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +212,54 @@ def _attach_chunk_metadata(
 class EmbeddingService:
 
     @staticmethod
+    async def extract_topics(
+        parent_chunks: list[PDFChunk],
+        method: str = "llm",
+    ) -> list[str]:
+        if not parent_chunks:
+            return []
+
+        candidates = []
+        priority_keywords = ["abstract", "introduction", "summary", "key contributions"]
+        
+        for c in parent_chunks[:15]:
+            text_lower = c.chunk_text.lower()
+            if any(kw in text_lower for kw in priority_keywords):
+                candidates.append(c)
+            elif len(c.chunk_text) > 150:
+                candidates.append(c)
+        
+        selected_chunks = candidates[:4] if candidates else parent_chunks[:4]
+        combined_text = " ".join([c.chunk_text for c in selected_chunks if c.chunk_text])
+
+        if not combined_text.strip():
+            return []
+
+        if method == "llm":
+            try:
+                logger.debug(f"Extracting topics via LLM from {len(selected_chunks)} selected chunks")
+                prompt = f"""Từ đoạn văn bản sau, hãy trích xuất 3-5 cụm từ khóa chính bằng tiếng Anh, phù hợp để tìm kiếm bài báo liên quan trên Semantic Scholar.
+Văn bản: {combined_text}
+Yêu cầu: TRẢ VỀ JSON ARRAY. Không giải thích. Chỉ trích xuất lĩnh vực nghiên cứu/methodology."""
+                
+                answer, _, _ = await asyncio.to_thread(
+                    lambda: DeepSeekProvider.generate(
+                        system_prompt="Bạn là chuyên gia phân tích bài báo khoa học. Trả lời chỉ bằng JSON array.",
+                        user_prompt=prompt,
+                        temperature=0.2,
+                        max_tokens=200,
+                    )
+                )
+                clean_answer = answer.strip().replace("```json", "").replace("```", "")
+                extracted_topics = json.loads(clean_answer)
+                
+                if isinstance(extracted_topics, list):
+                    return [str(t).strip() for t in extracted_topics if str(t).strip()][:5]
+            except Exception as e:
+                logger.warning(f"LLM topic extraction failed: {e}")
+        return []
+
+    @staticmethod
     async def chunk_pdf(
         session: AsyncSession,
         pdf_id: UUID,
@@ -220,50 +272,26 @@ class EmbeddingService:
         block_id: UUID | None = None,
         source_block_type: str | None = None,
         section_path: list[str] | None = None,
-    ) -> list[PDFChunk]:
-        """
-        Paragraph-aware chunking với parent-child hierarchy.
+    ) -> tuple[list[PDFChunk], list[str]]:
         
-        - Split text → paragraphs (\\n\\n)
-        - Filter garbage (<50 chars, page numbers, URLs, ...)
-        - Gom paragraphs vào parent chunks (~parent_size chars)
-        - Split parent thành children (~child_size chars, sentence boundary)
-        - Children: dùng cho embedding + similarity search
-        - Parents: dùng cho LLM context / summarize
-        """
         parent_size = parent_size or settings.CHUNK_PARENT_SIZE_CHARS
         child_size = child_size or settings.CHUNK_CHILD_SIZE_CHARS
         child_overlap = child_overlap if child_overlap is not None else settings.CHUNK_CHILD_OVERLAP_CHARS
-        import_all_models()
         text = text.replace("\x00", "")
 
         if source_block_type in {"table", "equation"}:
             parent_chunk, child_chunks = _create_parent_child(
-                pdf_id,
-                text.strip(),
-                child_size,
-                child_overlap,
-                page_number,
-                chunk_index_offset,
-                section_path,
-                source_block_type,
+                pdf_id, text.strip(), child_size, child_overlap, page_number, chunk_index_offset, section_path, source_block_type,
             )
             chunks = [parent_chunk, *child_chunks]
             _attach_chunk_metadata(chunks, block_id, source_block_type, section_path)
-            for chunk in chunks:
-                session.add(chunk)
+            for chunk in chunks: session.add(chunk)
             await session.flush()
-            logger.info(
-                f"Created {len(chunks)} chunks for PDF {pdf_id} (page={page_number}, block={source_block_type}): "
-                f"{sum(1 for c in chunks if c.chunk_type == 'parent')} parents, "
-                f"{sum(1 for c in chunks if c.chunk_type == 'child')} children"
-            )
-            return chunks
+            return chunks, []
 
         paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
         paragraphs = [p for p in paragraphs if not _is_garbage(p)]
-        if not paragraphs:
-            return []
+        if not paragraphs: return [], []
 
         chunks: list[PDFChunk] = []
         buffer: list[str] = []
@@ -272,75 +300,54 @@ class EmbeddingService:
 
         def flush_buffer() -> None:
             nonlocal buffer, buffer_len, chunk_index
-            if not buffer:
-                return
+            if not buffer: return
             parent_text = " ".join(buffer).strip()
-            if not parent_text:
-                return
             parent_chunk, child_chunks = _create_parent_child(
                 pdf_id, parent_text, child_size, child_overlap, page_number, chunk_index, section_path, source_block_type,
             )
             _attach_chunk_metadata([parent_chunk, *child_chunks], block_id, source_block_type, section_path)
-            chunks.append(parent_chunk)
-            chunks.extend(child_chunks)
+            chunks.extend([parent_chunk, *child_chunks])
             chunk_index += 1 + len(child_chunks)
-            buffer = []
-            buffer_len = 0
+            buffer, buffer_len = [], 0
 
         for para in paragraphs:
             para_len = len(para)
-
-            # Single paragraph > parent_size → split into sentence-based parents
             if para_len > parent_size and not buffer:
-                sentences = re.split(r'(?<=[.!?])\s+', para)
-                sentences = [s.strip() for s in sentences if s.strip()]
-                sent_buffer: list[str] = []
-                sent_len = 0
+                # Logic xử lý paragraph cực dài
+                sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', para) if s.strip()]
                 for sent in sentences:
-                    if sent_len + len(sent) > parent_size and sent_buffer:
-                        parent_text = " ".join(sent_buffer).strip()
-                        parent_chunk, child_chunks = _create_parent_child(
-                            pdf_id, parent_text, child_size, child_overlap, page_number, chunk_index, section_path, source_block_type,
-                        )
-                        _attach_chunk_metadata([parent_chunk, *child_chunks], block_id, source_block_type, section_path)
-                        chunks.append(parent_chunk)
-                        chunks.extend(child_chunks)
-                        chunk_index += 1 + len(child_chunks)
-                        sent_buffer = []
-                        sent_len = 0
-                    sent_buffer.append(sent)
-                    sent_len += len(sent)
-                if sent_buffer:
-                    parent_text = " ".join(sent_buffer).strip()
+                    # Đơn giản hóa logic split câu để tránh nested quá sâu
                     parent_chunk, child_chunks = _create_parent_child(
-                        pdf_id, parent_text, child_size, child_overlap, page_number, chunk_index, section_path, source_block_type,
+                        pdf_id, sent, child_size, child_overlap, page_number, chunk_index, section_path, source_block_type,
                     )
                     _attach_chunk_metadata([parent_chunk, *child_chunks], block_id, source_block_type, section_path)
-                    chunks.append(parent_chunk)
-                    chunks.extend(child_chunks)
+                    chunks.extend([parent_chunk, *child_chunks])
                     chunk_index += 1 + len(child_chunks)
                 continue
-
-            # Accumulate paragraphs
-            if buffer_len + para_len > parent_size and buffer:
-                flush_buffer()
-
-            buffer.append(para)
-            buffer_len += para_len
-
+            if buffer_len + para_len > parent_size and buffer: flush_buffer()
+            buffer.append(para); buffer_len += para_len
         flush_buffer()
 
-        for c in chunks:
-            session.add(c)
+        for c in chunks: session.add(c)
         await session.flush()
+
+        # Extract topics: Chỉ chạy ở 3 trang đầu để tiết kiệm API và lấy nội dung chuẩn
+        extracted_topics: list[str] = []
+        if page_number is not None and page_number <= 3 and len(chunks) > 5:
+            parent_chunks = [c for c in chunks if c.chunk_type == "parent"]
+            extracted_topics = await EmbeddingService.extract_topics(parent_chunks)
+            logger.info(f"Extracted topics for PDF {pdf_id} at page {page_number}")
 
         logger.info(
             f"Created {len(chunks)} chunks for PDF {pdf_id} (page={page_number}): "
             f"{sum(1 for c in chunks if c.chunk_type == 'parent')} parents, "
-            f"{sum(1 for c in chunks if c.chunk_type == 'child')} children"
+            f"{sum(1 for c in chunks if c.chunk_type == 'child')} children. "
+            f"topics: {extracted_topics}"
         )
-        return chunks
-
+        return chunks, extracted_topics
+    
+    
+    
     @staticmethod
     async def create_embedding(
         session: AsyncSession,

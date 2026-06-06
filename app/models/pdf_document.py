@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String, Integer, DateTime, Text, Boolean, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from sqlalchemy.dialects.postgresql import UUID
 import enum
 
 from app.core.database import Base
@@ -53,6 +53,7 @@ class PDFDocument(Base):
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)   # raw text (phase 2)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    extracted_topics: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)  # Extracted keywords
 
     # ── Status ────────────────────────────────────────────────────────────────
     status: Mapped[ProcessingStatus] = mapped_column(

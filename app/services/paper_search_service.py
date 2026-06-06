@@ -81,8 +81,8 @@ class PaperSearchService:
             # Format qua Gemini 1.5 Flash
             async with httpx.AsyncClient(timeout=15) as client:
                 gemini_resp = await client.post(
-                    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
-                    params={"key": settings.GEMINI_API_KEY},
+                    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+                    params={"key": settings.GEMINI_API_KEY},                  
                     json={
                         "contents": [{
                             "parts": [{
@@ -93,7 +93,7 @@ class PaperSearchService:
 Return ONLY JSON array, no markdown."""
                             }]
                         }],
-                        "generationConfig": {"responseType": "APPLICATION_JSON"}
+                        "generationConfig": {"responseMimeType": "application/json"}
                     },
                 )
                 gemini_resp.raise_for_status()
@@ -224,8 +224,8 @@ Return ONLY JSON array, no markdown."""
             if not paper:
                 return {"error": "Không tìm thấy tài liệu", "status_code": 404}
 
-            if hasattr(paper, "extracted_topics") and paper.extracted_topics is not None and isinstance(paper.extracted_topics, list):
-                topics = paper.extracted_topics
+            if hasattr(paper, "extracted_topics") and isinstance(paper.extracted_topics, list) and len(paper.extracted_topics) > 0:
+                extracted_topics = paper.extracted_topics
                 method = "precomputed"
             else:
                 filename = paper.original_name
@@ -233,11 +233,11 @@ Return ONLY JSON array, no markdown."""
                     filename = filename[:-4]
                 for char in ["_", "-", ".", "@", "+"]:
                     filename = filename.replace(char, " ")
-                topics = [" ".join(filename.split())]
+                extracted_topics = [" ".join(filename.split())]
                 method = "title_fallback"
 
             # Build parallel tasks with provided filters
-            if len(topics) > 1:
+            if len(extracted_topics) > 1:
                 tasks = [
                     PaperSearchService.search_papers(
                         query=topic,
@@ -246,12 +246,12 @@ Return ONLY JSON array, no markdown."""
                         year_to=year_to,
                         min_citations=min_citations,
                     )
-                    for topic in topics
+                    for topic in extracted_topics
                 ]
                 results = await asyncio.gather(*tasks)
             else:
                 res = await PaperSearchService.search_papers(
-                    query=topics[0],
+                    query=extracted_topics[0],
                     limit=limit,
                     year_from=year_from,
                     year_to=year_to,
@@ -267,7 +267,7 @@ Return ONLY JSON array, no markdown."""
                         all_papers[p["s2_id"]] = p
 
             sorted_papers = sorted(all_papers.values(), key=lambda p: p.get("citation_count", 0), reverse=True)[:limit]
-            return {"source_pdf_id": str(pdf_id), "extracted_topics": topics, "related_papers": sorted_papers, "method": method}
+            return {"source_pdf_id": str(pdf_id), "extracted_topics": extracted_topics, "related_papers": sorted_papers, "method": method}
         except Exception as e:
             logger.error(f"Related papers error: {e}")
             return {"error": f"Lỗi hệ thống: {str(e)}", "status_code": 500}

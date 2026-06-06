@@ -34,6 +34,7 @@ class PDFDocumentResponse(PDFDocumentBase):
     updated_at: datetime
     is_favorite: bool = False
     model_config = ConfigDict(from_attributes=True)
+    extracted_topics: Optional[list[str]] = None
 
 
 # ── Upload Response ───────────────────────────────────────────────────────────

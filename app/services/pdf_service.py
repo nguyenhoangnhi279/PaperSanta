@@ -344,8 +344,10 @@ class PDFService:
                 for block in extraction.blocks:
                     if not block.content_markdown.strip():
                         continue
-                    page_chunks = await EmbeddingService.chunk_pdf(
-                        session, pdf_id, block.content_markdown,
+                    page_chunks, extracted_topics = await EmbeddingService.chunk_pdf(
+                        session,
+                        pdf_id,
+                        block.content_markdown.replace("\x00", ""),
                         page_number=block.page_number,
                         chunk_index_offset=chunk_offset,
                         block_id=block.id,
@@ -354,6 +356,9 @@ class PDFService:
                     )
                     chunks.extend(page_chunks)
                     chunk_offset += len(page_chunks)
+                    if block.page_number == 1 and extracted_topics:
+                        doc.extracted_topics = extracted_topics  # Save topics from first page
+                        logger.info(f"Extracted topics for PDF {pdf_id}: {extracted_topics}")
                 await session.flush()
 
                 if not chunks:
