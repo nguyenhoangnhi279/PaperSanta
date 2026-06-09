@@ -62,6 +62,15 @@ app = FastAPI(
     description="PDF Upload & Storage service với RAG pipeline (phase 2)",
     lifespan=lifespan,
 )
+# Health check
+@app.get("/health", tags=["System"])
+async def health():
+    return {
+        "status": "ok",
+        "app": settings.APP_NAME,
+        "embedding": getattr(app.state, "embedding_warmup", None),
+    }
+
 
 # CORS
 app.add_middleware(
@@ -93,11 +102,3 @@ if frontend_dist.exists():
         return FileResponse(frontend_dist / "index.html")
 
 
-# Health check
-@app.get("/health", tags=["System"])
-async def health():
-    return {
-        "status": "ok",
-        "app": settings.APP_NAME,
-        "embedding": getattr(app.state, "embedding_warmup", None),
-    }

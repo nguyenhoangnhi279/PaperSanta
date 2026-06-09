@@ -17,4 +17,5 @@ openai
 numpy
 sentence-transformers
 pymupdf4llm
-
+pytest
+pytest-asyncio
