@@ -48,3 +48,8 @@ scripts/
 eval/
 reports/
 *.md
+
+# Profiling
+*.prof
+test_profile*
+prof/
