@@ -53,19 +53,15 @@ export default function Sidebar({
           <span className="font-bold text-sm truncate text-[var(--color-ink)]">{user?.displayName || 'Guest'}</span>
         </div>
       </div>
-
-      {/* Global Search */}
-      <div className="px-4 mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink-secondary)]" size={14} />
-          <input
-            type="text"
-            placeholder="Search for files..."
-            className="w-full bg-[var(--color-bg)] border border-[var(--color-line)] rounded-lg py-2 pl-9 pr-4 text-xs focus:ring-1 focus:ring-[var(--color-accent)] outline-none text-[var(--color-ink)] placeholder:text-[var(--color-ink-secondary)]"
-          />
-        </div>
-      </div>
-
+{/* Papersanta */}
+<div className="px-4 mb-4">
+  <input
+    type="text"
+    value="PaperSanta"
+    readOnly
+    className="w-full bg-[var(--color-bg)] border border-[var(--color-line)] rounded-lg py-2 px-4 text-xs outline-none text-gray-400 text-center cursor-default"
+  />
+</div>
       {/* Main Navigation */}
       <div className="px-3 space-y-1">
         <p className="px-4 text-[10px] font-bold text-[var(--color-ink-secondary)] uppercase tracking-widest mb-1 mt-2">Tools</p>
