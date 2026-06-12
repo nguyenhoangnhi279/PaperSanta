@@ -98,7 +98,7 @@ PaperSanta/
 #### 1. Clone repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/tthanh1223/PaperSanta_TTNN
 cd PaperSanta_TTNN
 ```
 
