@@ -125,7 +125,8 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
         "http://localhost:5174",
-        "http://127.0.0.1:5174"
+        "http://127.0.0.1:5174",
+        "https://papersanta.netlify.app"
     ]
     model_config = {
         "env_file": os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../.env"),
