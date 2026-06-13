@@ -1,106 +1,223 @@
 # PaperSanta
 
-Đồ án AI Research Assistant — PDF Storage + RAG Pipeline với Supabase Auth & DeepSeek.
+> PaperSanta là một AI Research Assistant hỗ trợ đọc, lưu trữ, tìm kiếm và phân tích bài báo khoa học dạng PDF.
 
-## Kiến trúc Auth
+**Phiên bản:** v1.0.0 | **Bắt đầu:** 13/03/2026 | **License:** MIT
+
+---
+
+## Đặc điểm nổi bật
+
+- **Xác thực đa-nền tảng**: Đăng nhập qua Google OAuth với Supabase
+- **Quản lý tài liệu**: Upload, xem, xóa các bài báo PDF cá nhân
+- **RAG (Retrieval-Augmented Generation)**: Đặt câu hỏi và chat với PDF bằng AI DeepSeek
+- **Tìm kiếm semantic**: Tìm các bài báo liên quan dựa trên nội dung
+- **Phân tích tài liệu**: Phân tích nội dung PDF, rút trích thông tin quan trọng
+- **Bảo mật dữ liệu**: Mỗi user chỉ thấy PDF của mình (filter theo user_id)
+- **Stateless Backend**: FastAPI backend không lưu session, dễ scale
+
+---
+
+## Kiến trúc dự án (Architecture)
+
+### Sơ đồ hệ thống
 
 ```
-Frontend (React + supabase-js)
-    │  signInWithOAuth({ provider: "google" })
-    │  → Google OAuth → Supabase callback → JWT in localStorage
-    │
-    │  Mỗi request gửi kèm:
-    │  Authorization: Bearer <supabase_jwt>
-    │
-    ▼
-FastAPI (stateless, không cookie, không session)
-    │
-    ├── get_current_user (dependency)
-    │   └── PyJWT decode với SUPABASE_JWT_SECRET
-    │       → user_id (uuid) + email
-    │
-    ├── SQLAlchemy (WHERE user_id = ...)
-    └── Supabase Storage (path: {user_id}/{filename})
+Frontend (React 18 + TypeScript + Supabase.js)
+         ↓
+    Google OAuth (Supabase Auth)
+         ↓
+    JWT Token (localStorage)
+         ↓
+Backend (FastAPI)
+    ├── Auth: PyJWT verify
+    ├── PDF Storage: Supabase Storage ({user_id}/{filename})
+    ├── Database: PostgreSQL (PDFs, chat sessions, embeddings)
+    ├── Embedding: Sentence-transformers (all-minilm-l6-v2)
+    └── RAG Pipeline: Text Extraction → Embedding → Semantic Search → LLM
 ```
 
-- Backend **stateless** — không quản lý OAuth, không session server-side
-- Mỗi user chỉ thấy PDF của mình (filter theo `user_id` từ JWT)
-- Storage: 1 bucket `pdfs` chung, path phân biệt `{user_id}/{filename}`
+### Cấu trúc thư mục
 
-## Setup
-
-### 1. Supabase Project
-
-Tạo project tại [supabase.com](https://supabase.com), sau đó:
-
-**Authentication → Providers → Google:**
-- Bật Google provider
-- Client ID + Secret từ [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-- Redirect URI: lấy từ Supabase (ví dụ: `https://dtggkrxdqpijfemihzkz.supabase.co/auth/v1/callback`)
-
-**Authentication → Settings:**
-- **Site URL:** `http://localhost:5173/static/` (hoặc URL frontend của mày)
-- **Redirect URLs:** thêm `http://localhost:5173/static/**`
-
-**Settings → API:**
-- `Project URL` → `SUPABASE_URL`
-- `anon public` key → `SUPABASE_KEY` (cho frontend)
-- `service_role` key → `SUPABASE_SERVICE_ROLE_KEY` (cho backend storage)
-- `JWT Secret` → `SUPABASE_JWT_SECRET` (cho backend verify token)
-
-### 2. Database (chạy 1 lần)
-
-Vì thêm cột `user_id` vào model cũ, cần migrate bằng SQL Editor trong Supabase Dashboard:
-
-```sql
-ALTER TABLE pdf_documents ADD COLUMN IF NOT EXISTS user_id VARCHAR(255) NOT NULL DEFAULT '';
-CREATE INDEX IF NOT EXISTS ix_pdf_documents_user_id ON pdf_documents(user_id);
+```
+PaperSanta/
+├── app/                          # Backend Python
+│   ├── api/                      # API routes
+│   │   ├── pdf_router.py         # Upload, list, delete PDFs
+│   │   ├── rag_router.py         # Chat, RAG endpoints
+│   │   ├── analyze_router.py     # Document analysis endpoints
+│   │   └── search_router.py      # Paper search & similarity
+│   ├── core/                     # Core utilities
+│   │   ├── auth.py               # JWT verification
+│   │   ├── config.py             # Environment config
+│   │   ├── database.py           # DB connection
+│   │   ├── deepseek_provider.py  # Embedding provider (Sentence-transformers)
+│   │   └── embedding_provider.py # LLM provider integration
+│   ├── models/                   # SQLAlchemy models
+│   │   ├── pdf_document.py       # PDF document model
+│   │   ├── pdf_block.py          # PDF block/chunk model
+│   │   ├── chat.py               # Chat session model
+│   │   ├── analysis.py           # Document analysis model
+│   │   └── embedding.py          # Embedding vector model
+│   ├── schemas/                  # Pydantic schemas (request/response)
+│   └── services/                 # Business logic
+│       ├── pdf_service.py        # PDF operations & extraction
+│       ├── rag_service.py        # RAG pipeline
+│       ├── embedding_service.py  # Embedding generation & storage
+│       ├── analyze_service.py    # Document analysis
+│       ├── extraction_service.py # Text extraction from PDF
+│       ├── paper_search_service.py # Semantic search
+│       └── text_normalization_service.py # Text processing
+├── frontend/                     # React + TypeScript frontend
+│   ├── src/
+│   │   ├── api/                  # Backend API client
+│   │   ├── components/           # React components
+│   │   ├── context/              # Auth context (Supabase)
+│   │   ├── lib/                  # Utility functions
+│   │   └── main.tsx              # Entry point
+│   └── vite.config.ts            # Vite config
+├── main.py                       # FastAPI app entry point
+├── requirements.txt              # Python dependencies
+└── README.md                     # This file
 ```
 
-Nếu chưa có dữ liệu quan trọng, có thể drop bảng cũ và để app tự tạo lại:
-```sql
-DROP TABLE IF EXISTS pdf_documents;
-```
+---
 
-### 3. Env
+## Hướng dẫn bắt đầu (Getting Started)
 
-**Copy file `.env` từ notion, thêm 2 field mới:**
+### Yêu cầu hệ thống (Prerequisites)
 
-```env
-# Supabase Auth
-SUPABASE_JWT_SECRET=<lấy từ Settings → API → JWT Secret>
-SUPABASE_SERVICE_ROLE_KEY=<lấy từ Settings → API → service_role key>
-```
+- **Node.js**: v18+ (cho frontend - TypeScript)
+- **Python**: v3.10+ (cho backend - FastAPI)
+- **npm**: Node package manager
+- **pip**: Python package manager
+- **Git**: Version control
 
-**Frontend env** (`frontend/.env` — đã có sẵn, kiểm tra lại nếu cần):
-```env
-VITE_SUPABASE_URL=<giống SUPABASE_URL>
-VITE_SUPABASE_ANON_KEY=<anon public key>
-```
+### Cài đặt (Installation)
 
-### 4. Chạy
+#### 1. Clone repository
 
 ```bash
-# Backend
-.venv\Scripts\activate        # Windows
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+git clone https://github.com/tthanh1223/PaperSanta_TTNN
+cd PaperSanta_TTNN
+```
 
-# Frontend (terminal riêng)
+#### 2. Tạo virtual environment Python
+
+```bash
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# macOS / Linux
+python -m venv venv
+source venv/bin/activate
+```
+
+#### 3. Cài đặt dependencies Backend
+
+```bash
+pip install -r requirements.txt
+```
+
+#### 4. Cài đặt dependencies Frontend
+
+```bash
 cd frontend
 npm install
+cd ..
+```
+
+### Cấu hình (Configuration)
+
+#### 1. Tạo tài khoản Supabase
+
+- Đăng ký tại [supabase.com](https://supabase.com)
+- Tạo project mới
+- Lấy `Project URL`, `Anon Key`, `Service Role Key` và `JWT Secret`
+
+#### 2. Cấu hình Google OAuth (trong Supabase)
+
+- Đi đến **Authentication → Providers → Google**
+- Bật Google provider
+- Lấy **Client ID** và **Secret** từ [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+- Nhập vào Supabase
+
+#### 3. Lấy API key từ DeepSeek platform
+
+- Đăng ký tại [platform.deepseek.com](https://platform.deepseek.com)
+- Vào **API keys** chọn **Create new API key**
+- Nhập tên và lấy DeepSeek API key
+
+#### 4. Cấu hình Environment Variables
+
+**Tạo file `.env` ở thư mục gốc:**
+
+```env
+# Database (Supabase/Postgres)
+DB_HOST=<Host URL từ Supabase Database Settings>
+DB_USER=<Database User>
+DB_PASSWORD=<Database Password>
+
+# Supabase Auth & Storage
+SUPABASE_URL=<Project URL từ Supabase>
+SUPABASE_KEY=<Anon Key từ Supabase>
+SUPABASE_SERVICE_ROLE_KEY=<Service Role Key từ Supabase>
+SUPABASE_JWT_SECRET=<JWT Secret từ Supabase Settings>
+
+# External APIs
+TAVILY_API_KEY=<Tavily API key>
+GEMINI_API_KEY=<Gemini API key>
+SEMANTIC_SCHOLAR_API_KEY=<Semantic Scholar API key>
+DEEPSEEK_API_KEY=<DeepSeek API key>
+OPENAI_API_KEY=<OpenAI API key>
+
+# Environment
+ENVIRONMENT=development
+```
+
+**Tạo file `frontend/.env`:**
+
+```env
+VITE_SUPABASE_URL=<Project URL từ Supabase>
+VITE_SUPABASE_ANON_KEY=<Anon Key từ Supabase>
+```
+
+---
+
+## Hướng dẫn sử dụng (Usage)
+
+### Chạy ứng dụng
+
+```bash
+# Terminal 1: Backend
+.venv\Scripts\activate  # Windows (hoặc source venv/bin/activate trên Mac/Linux)
+uvicorn main:app --reload --port 8000
+
+# Terminal 2: Frontend
+cd frontend
+npm run build
 npm run dev
 ```
 
-Mở `http://localhost:5173/static/` → click "Sign in with Google" → xài app.
+### Truy cập ứng dụng
 
-### 5. Nhiều user
+1. Mở browser: `http://localhost:5173`
+2. Click **Sign in with Google**
+3. Đăng nhập Google account
+4. Bắt đầu upload PDF và chat
 
-- Bạn bè mở URL trên → sign in Google → mỗi đứa có user riêng
-- Mỗi đứa chỉ thấy PDF của mình (backend filter `user_id`)
-- Storage path: `{user_id}/{filename}` — không lo đè file
+### Các tính năng chính
 
-## API
+| Tính năng | Mô tả |
+|-----------|--------|
+| **Upload PDF** | Drag & drop hoặc chọn file PDF để upload |
+| **Danh sách PDF** | Xem tất cả PDF của bạn |
+| **Chat với PDF** | Đặt câu hỏi về nội dung PDF |
+| **Tìm kiếm** | Tìm PDF liên quan theo từ khóa |
+| **Xóa PDF** | Xóa PDF khỏi thư viện |
+
+### API Endpoints
 
 | Method | URL | Auth | Mô tả |
 |--------|-----|------|-------|
@@ -118,89 +235,53 @@ Mở `http://localhost:5173/static/` → click "Sign in with Google" → xài ap
 | POST | /api/embedding/search | ✅ | Tìm kiếm similar documents |
 | GET | /health | ❌ | Health check |
 
-Tất cả endpoint (trừ health) đều cần `Authorization: Bearer <token>` — nếu không có → 401.
+**Lưu ý:** Tất cả endpoint (trừ `/health`) cần header `Authorization: Bearer <token>`
 
-## Security notes
+---
 
-- `.env` chứa credentials thật **đã bị commit** — chạy `git rm --cached .env` để stop tracking, add vào `.gitignore` đã có sẵn
-- `SUPABASE_JWT_SECRET` và `SUPABASE_SERVICE_ROLE_KEY` là **secret**, không để lộ
-- `SUPABASE_KEY` (anon) là public, an toàn để ở frontend
+## Đóng góp (Contributing)
 
-```
-PaperSanta
-├─ AGENTS.md
-├─ app
-│  ├─ api
-│  │  ├─ embedding_router.py
-│  │  ├─ pdf_router.py
-│  │  └─ rag_router.py
-│  ├─ core
-│  │  ├─ auth.py
-│  │  ├─ config.py
-│  │  ├─ database.py
-│  │  ├─ deepseek_provider.py
-│  │  ├─ embedding_provider.py
-│  │  └─ __init__.py
-│  ├─ models
-│  │  ├─ analysis.py
-│  │  ├─ chat.py
-│  │  ├─ embedding.py
-│  │  └─ pdf_document.py
-│  ├─ schemas
-│  │  ├─ chat_schema.py
-│  │  ├─ embedding_schema.py
-│  │  └─ pdf_schema.py
-│  ├─ services
-│  │  ├─ embedding_service.py
-│  │  ├─ pdf_service.py
-│  │  └─ rag_service.py
-│  └─ __init__.py
-├─ fix_log_2026-05-14.txt
-├─ frontend
-│  ├─ FRONTEND.md
-│  ├─ index.html
-│  ├─ package-lock.json
-│  ├─ package.json
-│  ├─ README.md
-│  ├─ src
-│  │  ├─ api
-│  │  │  ├─ pdf.js
-│  │  │  └─ rag.js
-│  │  ├─ App.jsx
-│  │  ├─ components
-│  │  │  ├─ AppLayout.jsx
-│  │  │  ├─ ChatPanel.jsx
-│  │  │  ├─ LibraryPanel.jsx
-│  │  │  ├─ MainContent.jsx
-│  │  │  ├─ NavItem.jsx
-│  │  │  ├─ PaperCard.jsx
-│  │  │  ├─ PdfList.jsx
-│  │  │  ├─ Sidebar.jsx
-│  │  │  ├─ SidebarSection.jsx
-│  │  │  ├─ ToastContainer.jsx
-│  │  │  ├─ UploadZone.jsx
-│  │  │  ├─ UserAccount.jsx
-│  │  │  ├─ Viewer.jsx
-│  │  │  └─ WelcomeCard.jsx
-│  │  ├─ context
-│  │  │  └─ AuthContext.jsx
-│  │  ├─ index.css
-│  │  ├─ lib
-│  │  │  └─ supabase.js
-│  │  ├─ main.jsx
-│  │  └─ utils
-│  │     └─ format.js
-│  └─ vite.config.js
-├─ main.py
-├─ RAG_RAG
-│  ├─ rag_from_scratch_10_and_11.ipynb
-│  ├─ rag_from_scratch_12_to_14.ipynb
-│  ├─ rag_from_scratch_15_to_18.ipynb
-│  ├─ rag_from_scratch_1_to_4.ipynb
-│  ├─ rag_from_scratch_5_to_9.ipynb
-│  └─ README.md
-├─ README.md
-├─ requirements.txt
-└─ TODO-frontend.md
+### Quy trình đóng góp
 
-```
+1. **Fork** repository
+2. Tạo branch mới: `git checkout -b feature/your-feature`
+3. Commit changes: `git commit -am 'Add your feature'`
+4. Push to branch: `git push origin feature/your-feature`
+5. Tạo **Pull Request** (theo quy chuẩn của dự án)
+
+### Hướng dẫn phát triển
+
+- Tuân thủ PEP 8 cho Python code
+- Viết tests cho features mới
+- Cập nhật README nếu thêm tính năng mới
+- Chạy tests trước khi push: `pytest`
+
+---
+
+## Giấy phép (License)
+
+Dự án này được cấp phép dưới **MIT License**.
+
+**Copyright © 2026 - Nhóm Trí tuệ nhân nhượng (24TNT1)**
+
+Được phép sử dụng, sửa đổi, và phân phối code dưới các điều khoản MIT License.
+
+---
+
+## Liên hệ & Hỗ trợ
+
+- **Tác giả**: Nhóm Trí tuệ nhân nhượng (24TNT1)
+- **GitHub Issues**: [Báo cáo lỗi hoặc suggest feature](../../issues)
+- **Email**: tthanh1223@gmail.com (hoặc liên hệ tác giả)
+
+---
+
+## Tài liệu bổ sung
+
+- [Frontend README](./frontend/FRONTEND.md) - Hướng dẫn frontend chi tiết (React + TypeScript)
+- [RAG Improvement Notes](./RAG_IMPROVEMENT_NOTES.md) - Ghi chú cải thiện RAG pipeline
+- [Analyzer Development](./analyzer_dev.md) - Tài liệu phát triển module analyzer
+
+---
+
+**Last Updated**: 12/06/2026
