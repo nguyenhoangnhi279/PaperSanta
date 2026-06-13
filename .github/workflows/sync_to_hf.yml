@@ -16,7 +16,7 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # 1. Lệnh ép in file README.md chuẩn 100% ngay tại chỗ
+          # 1. Ép in file README.md chuẩn
           echo "---" > README.md
           echo "title: Paper Search API" >> README.md
           echo "emoji: 🚀" >> README.md
@@ -26,16 +26,19 @@ jobs:
           echo "pinned: false" >> README.md
           echo "---" >> README.md
           
-          # 2. Dọn rác quá khứ
+          # 2. Xóa lịch sử cũ và tạo mới
           rm -rf .git
-          
-          # 3. Đóng gói và ép đẩy đi
           git init
           git branch -M main
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add .
-          git commit -m "Force deploy with generated README"
           
-          # Nhớ thay lại link của bạn ở dòng dưới này nha
+          # 3. CHIÊU CUỐI: ÉP GIT PHẢI LẤY FILE NÀY (Bất chấp .gitignore)
+          git add -f README.md
+          git add .
+          
+          # 4. Đóng gói và đẩy đi
+          git commit -m "Force deploy with strict README"
+          
+          # Nhớ thay lại link thật của bạn ở dòng dưới nha
           git push --force https://nguyenhoangynhi:${HF_TOKEN}@huggingface.co/spaces/nguyenhoangynhi/paper-search-api main
