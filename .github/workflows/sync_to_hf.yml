@@ -15,4 +15,4 @@ jobs:
       - name: Push to HF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push --force https://nguyenhoangynhi:$HF_TOKEN@huggingface.co/spaces/nguyenhoangnhi/paper-search-api main
+        run: git push --force https://nguyenhoangnhi:$HF_TOKEN@huggingface.co/spaces/nguyenhoangynhi/paper-search-api main
