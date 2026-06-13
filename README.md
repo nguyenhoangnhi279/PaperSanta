@@ -154,17 +154,23 @@ cd ..
 **Tạo file `.env` ở thư mục gốc:**
 
 ```env
-# Supabase
+# Database (Supabase/Postgres)
+DB_HOST=<Host URL từ Supabase Database Settings>
+DB_USER=<Database User>
+DB_PASSWORD=<Database Password>
+
+# Supabase Auth & Storage
 SUPABASE_URL=<Project URL từ Supabase>
 SUPABASE_KEY=<Anon Key từ Supabase>
 SUPABASE_SERVICE_ROLE_KEY=<Service Role Key từ Supabase>
 SUPABASE_JWT_SECRET=<JWT Secret từ Supabase Settings>
 
-# DeepSeek API
+# External APIs
+TAVILY_API_KEY=<Tavily API key>
+GEMINI_API_KEY=<Gemini API key>
+SEMANTIC_SCHOLAR_API_KEY=<Semantic Scholar API key>
 DEEPSEEK_API_KEY=<DeepSeek API key>
-
-# Database
-DATABASE_URL=<Postgres connection string>
+OPENAI_API_KEY=<OpenAI API key>
 
 # Environment
 ENVIRONMENT=development
@@ -175,7 +181,6 @@ ENVIRONMENT=development
 ```env
 VITE_SUPABASE_URL=<Project URL từ Supabase>
 VITE_SUPABASE_ANON_KEY=<Anon Key từ Supabase>
-VITE_API_BASE_URL=http://localhost:8000
 ```
 
 ---
