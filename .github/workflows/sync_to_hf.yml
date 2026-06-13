@@ -28,4 +28,4 @@ jobs:
           git commit -m "Deploy clean code to Hugging Face"
           
           # 3. Đẩy mạnh sang Hugging Face (Nhớ sửa link này lại bằng thông tin thật của bạn nha)
-          git push --force https://TÊN_TÀI_KHOẢN_CỦA_BẠN:${HF_TOKEN}@huggingface.co/spaces/TÊN_TÀI_KHOẢN_CỦA_BẠN/TÊN_SPACE_CỦA_BẠN main
+          git push --force https://nguyenhoangnhi:${HF_TOKEN}@huggingface.co/spaces/nguyenhoangynhi/paper-search-api main
