@@ -248,7 +248,6 @@ npm run dev
 ---
 
 ## Đóng góp (Contributing)
-
 ### Quy trình đóng góp
 
 1. **Fork** repository
